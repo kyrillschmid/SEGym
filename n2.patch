@@ -6,3 +6,9 @@ diff --git a/src/diff_patch_search/primes.py b/src/diff_patch_search/primes.py
 +    if n == 2:
 +        return [2]
      return []
+
+
+
+
+
+
