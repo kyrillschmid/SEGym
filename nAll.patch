@@ -1,0 +1,19 @@
+diff --git a/src/diff_patch_search/primes.py b/src/diff_patch_search/primes.py
+--- a/src/diff_patch_search/primes.py
++++ b/src/diff_patch_search/primes.py
+@@ -1,3 +1,11 @@
+ def generate(n: int):
+-    if n == 2:
+-        return [2]
+-    return []
++    i = 2
++    factors = []
++    while i * i <= n:
++        if n % i:
++            i += 1
++        else:
++            n //= i
++            factors.append(i)
++    if n > 1:
++        factors.append(n)
++    return factors

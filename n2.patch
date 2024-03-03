@@ -1,0 +1,8 @@
+diff --git a/src/diff_patch_search/primes.py b/src/diff_patch_search/primes.py
+--- a/src/diff_patch_search/primes.py
++++ b/src/diff_patch_search/primes.py
+@@ -1,2 +1,4 @@
+ def generate(n: int):
++    if n == 2:
++        return [2]
+     return []
