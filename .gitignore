@@ -1,0 +1,8 @@
+*.egg-info
+.pytest_cache
+.tox
+__pycache__
+
+/diff-patch-search
+
+diff_patch_search-0.0.1*
