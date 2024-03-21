@@ -1,0 +1,5 @@
+#1 [internal] load build definition from Dockerfile
+#1 sha256:73907b4e9c0c253ab0f13075fe2809cdb1cf586c32f12810503d87e391700708
+#1 transferring dockerfile: 2B 0.0s done
+#1 DONE 0.0s
+failed to solve with frontend dockerfile.v0: failed to read dockerfile: open /var/lib/docker/tmp/buildkit-mount2846124572/Dockerfile: no such file or directory
