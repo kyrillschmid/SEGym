@@ -30,9 +30,19 @@ in the root directory.
 
 ## Working with the project
 
-## Python
+## Models
+
+Either add a .env file to the root directory with your OpenAI API key:
+
+```
+API_KEY=...
+```
+
+or to use ollama uncomment the necessary lines in the `call_openai.py` file.
 
 Here I show how to use the tool to create a patch file and apply it to a repository e.g. the [PrimeFactors](https://github.com/kyrillschmid/PrimeFactors.git)
+
+## Python
 
 To create a patch in the PrimeFactors repo, use the following command:
 
