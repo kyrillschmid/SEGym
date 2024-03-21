@@ -16,7 +16,7 @@ in the root directory (i.e., the directory where `pyproject.toml` and
 After building the package you can install it with pip:
 
 ```shell script
-pip install dist/simple_packaging-0.0.1-py3-none-any.whl
+pip install dist/diff_patch_search-0.0.1-py3-none-any.whl
 ```
 
 To install the package so that it can be used for development purposes
@@ -30,27 +30,30 @@ in the root directory.
 
 ## Working with the project
 
-The project is configured to run `pytest` tests and doctests. Source code for
-tests is in the `tests` directory, outside the main package directory. Therefore
-you have to make sure that your python interpreter can resolve the imports for
-the tests. The easiest way to ensure this is to install the package. You can run
-the tests from the root directory as follows:
+## Python
 
-```shell script
-$ pytest
+Here I show how to use the tool to create a patch file and apply it to a repository e.g. the [PrimeFactors](https://github.com/kyrillschmid/PrimeFactors.git)
+
+To create a patch in the PrimeFactors repo, use the following command:
+
+```
+diff-patch-search src tests --affected-files  primes.py main_test.py --issue issue.md
 ```
 
-_Note:_ If you install the package from a wheel, the tests will run against the
-installed package; install in editable mode (i.e., using the `-e` option) to
-test against the development package.
+## Git
 
-To check that the package works correctly with different Python versions by executing
+To test the patch file, use the following command:
 
-```shell script
-$ tox
+```
+git apply --ignore-space-change --ignore-whitespace --verbose patchGPT.patch
 ```
 
-from the project's root directory. Currently Python versions 3.8, 3.9 and 3.10
-are tested. Dependencies for `tox` are installed using `tox-conda`; remove the
-corresponding entry in the `tox.ini` file if you want to use `virtualenv`
-instead.
+## Docker
+
+To use docker to apply the patch and run the tests, create a docker image and run it.
+
+```
+docker build -t prime_factor_image . 2> output.txt
+docker run --name PrimeFactors prime_factor_image
+docker cp PrimeFactors:/usr/src/app/test_output.txt ./test_output.txt
+```
