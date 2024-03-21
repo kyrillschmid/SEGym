@@ -1,6 +1,6 @@
 # Package simple_packaging
 
-A simple example for an installable package
+A repo to create patches for a given repository and issue and apply them.
 
 ## Installation
 
