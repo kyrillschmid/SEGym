@@ -40,9 +40,9 @@ API_KEY=...
 
 or to use ollama uncomment the necessary lines in the `call_openai.py` file.
 
-Here I show how to use the tool to create a patch file and apply it to a repository e.g. the [PrimeFactors](https://github.com/kyrillschmid/PrimeFactors.git)
-
 ## Python
+
+Here I show how to use the tool to create a patch file and apply it to a repository e.g. the [PrimeFactors](https://github.com/kyrillschmid/PrimeFactors.git)
 
 To create a patch in the PrimeFactors repo, use the following command:
 
