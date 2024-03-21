@@ -1,4 +1,4 @@
-# Package simple_packaging
+# Package DiffPatchSearch
 
 A repo to create patches for a given repository and issue and apply them.
 
