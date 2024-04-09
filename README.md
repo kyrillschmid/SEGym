@@ -67,3 +67,6 @@ docker build -t prime_factor_image . 2> output.txt
 docker run --name PrimeFactors prime_factor_image
 docker cp PrimeFactors:/usr/src/app/test_output.txt ./test_output.txt
 ```
+
+Docker issues
+sudo ln -s "$HOME/.docker/run/docker.sock" /var/run/docker.sock

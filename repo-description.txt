@@ -1,0 +1,25 @@
+src/
+    diff_patch_search.egg-info/
+        PKG-INFO
+        SOURCES.txt
+        entry_points.txt
+        top_level.txt
+        dependency_links.txt
+    diff_patch_search/
+        describe_repo.py
+        generate_patch.py
+        run_docker.py
+        sandbox.py
+        call_openai.py
+        __main__.py
+        __pycache__/
+            call_openai.cpython-312.pyc
+            primes.cpython-312.pyc
+            generate_patch.cpython-312.pyc
+            run_docker.cpython-312.pyc
+            __main__.cpython-312.pyc
+            describe_repo.cpython-312.pyc
+tests/
+    main_test.py
+    __pycache__/
+        main_test.cpython-312-pytest-8.0.2.pyc
