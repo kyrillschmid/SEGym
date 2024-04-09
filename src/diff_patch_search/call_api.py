@@ -25,7 +25,6 @@ def call_model(system_prompt, user_prompt, api, model):
         response_format={ "type": "json_object" }
         )
         return response.choices[0].message.content
-
     
     # OPENAI
     if api == 'openai':

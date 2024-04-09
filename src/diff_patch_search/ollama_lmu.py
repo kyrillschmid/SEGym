@@ -3,10 +3,8 @@ import requests
 from requests.auth import HTTPBasicAuth
 from dotenv import load_dotenv
 
-# Load environment variables
 load_dotenv()
 
-# Credentials
 USERNAME = os.getenv("API_USERNAME")
 PASSWORD = os.getenv("API_PASSWORD")
 
@@ -22,11 +20,6 @@ def make_api_request(method, url, data=None, json=True):
     )
     return response.json() if response.status_code == 200 else response.text
 
-# Example usage to fetch local models
-#local_models = make_api_request('GET', '/tags')
-#print(local_models)
-
-
 def generate_completion(model, prompt, stream=False):
     data = {
         "model": model,
@@ -35,12 +28,6 @@ def generate_completion(model, prompt, stream=False):
         "stream": stream
     }
     return make_api_request('POST', '/generate', data)
-
-# Example call
-#response = generate_completion("dolphin-mixtral:latest", "Why is the sky blue? Respond using JSON")
-#print(response)
-
-#generate_completion("dolphin-mixtral:latest", "Why is the sky blue?", stream=True)
 
 def make_chat_request(model, messages, stream=False):
     """Make a request to the chat completion endpoint."""
@@ -64,7 +51,3 @@ messages = [
     {"role": "user", "content": "Hello, how are you?"},
     {"role": "system", "content": "System initialized."},
 ]
-
-#response = make_chat_request("gemma:latest", messages, stream=False)
-#print(type(response))
-#print(response)
