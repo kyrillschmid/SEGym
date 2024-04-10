@@ -1,7 +1,7 @@
 # SEGym
 
 SEGym allows you to apply patches to Python packages and run tests in isolated environments.
-This allows you to automatically search for patches with some solver (e.g. with an LLM) until all tests are resolved.
+You can use such an environment to let a solver (e.g. LLM) search for a patch for a given issue until all tests are passed.
 
 ## Prerequisites
 
@@ -55,8 +55,9 @@ see the notes for other APIs (ollama).
 
 ## Python
 
-After installing the package you can apply your solver to some repo with an open issue.
-To create a patch in the in a repo, navigate to the root directory and use the following command:
+After installing the package you can apply your solver to a repo with an open issue.
+Your repo needs to be pip installable! You can use this repo as template to make it installable!
+To create a patch in a repo, navigate to the root directory and use the following command:
 
 ```
 se-gym --affected-files primes.py main_test.py --issue issue.md
