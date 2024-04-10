@@ -61,7 +61,7 @@ Your repo needs to be pip installable! You can use this [PythonEnv](https://gith
 To create a patch in a repo, navigate to the root directory and use the following command:
 
 ```
-se-gym --affected-files primes.py main_test.py --issue issue.md
+se-gym --affected-files file-1.py file-2.py --issue issue.md
 ```
 
 The standard solver assumes that your repo contains a `src` and `tests` directory. For the standard
@@ -73,7 +73,7 @@ a new docker container will be created, the patch applied and the tests will be 
 
 There are three possible outcomes which reflect how successful the patch is:
 
-1. Patch not applicable, tests fail : (0, 0)
+1. Patch not applicable : (0, 0)
 2. Patch applicable, tests fail : (1, 0)
 3. Patch applicable, all tests succeed (1, 1)
 
