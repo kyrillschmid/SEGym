@@ -7,6 +7,14 @@ This allows you to automatically search for patches with some solver (e.g. with 
 
 Docker installed and running
 
+Create virtualenv:
+
+```
+python3 -m venv ~/.se_gym
+source ~/.se_gym/bin/activate
+pip install -r requirements.txt
+```
+
 ## Installation
 
 To build the project use
@@ -48,9 +56,7 @@ see the notes for other APIs (ollama).
 ## Python
 
 After installing the package you can apply your solver to some repo with an open issue.
-For that within the root directory of the repository use the following command:
-
-To create a patch in the PrimeFactors repo, use the following command:
+To create a patch in the in a repo, navigate to the root directory and use the following command:
 
 ```
 se-gym --affected-files primes.py main_test.py --issue issue.md
@@ -71,12 +77,23 @@ There are three possible outcomes which reflect how successful the patch is:
 
 ## Apply patch
 
-he standard solver will create a directory `patches` where the generated patch is placed.
-
+The standard solver will put the patches in a corresponding model directory.
 To test the patch file, use the following command:
 
 ```
-git apply --ignore-space-change --ignore-whitespace --verbose patchGPT.patch
+git apply --ignore-space-change --ignore-whitespace --verbose gpt-4-0125-preview/create_patch_string.patch
+```
+
+Install your repo in dev mode:
+
+```
+pip install -e .
+```
+
+Run tests:
+
+```
+pytest
 ```
 
 ## Docker

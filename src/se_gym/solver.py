@@ -3,7 +3,6 @@ import json
 
 from se_gym.call_api import call_model
 
-
 TASK_TYPES = {
     #"list_files_to_be_changed": ["Select the files that need to be changed based on the issue description.", "listing files to be changed", "Affected files"], 
     #"detect_lines_to_be_changed_in_files": ["Detect the lines that need to be changed in the files based on the issue description.", "detecting lines to be changed in files", "Lines to be changed"],

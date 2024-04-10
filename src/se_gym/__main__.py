@@ -17,12 +17,12 @@ def main():
     solver = Solver(args)
     env = Environment()
 
-    api = 'ollama_local' # 'openai' , 'ollama_lmu', 'ollama_local', 'groq'
-    model = 'mistral' # gpt-4-0125-preview, mistral, mixtral-8x7b-32768
+    api = 'openai' # 'openai' , 'ollama_lmu', 'ollama_local', 'groq'
+    model = 'gpt-4-0125-preview' # gpt-4-0125-preview, mistral, mixtral-8x7b-32768
     last_patch = None
     feedback = None
 
-    for i in range(3):
+    for i in range(1):
         patch = solver.generate_patch(i, args.issue, api, model, last_patch, feedback)
         logs, result = env.apply_patch_and_test(patch)
         last_patch = patch
