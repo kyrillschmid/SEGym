@@ -3,6 +3,26 @@
 SEGym allows you to apply patches to Python packages and run tests in isolated environments.
 You can use such an environment to let a solver (e.g. LLM) search for a patch for a given issue until all tests are passed.
 
+Here is the main loop to be used by any solver:
+
+```python
+solver = Solver(args)
+    env = Environment()
+
+    api = 'openai' # 'openai' , 'ollama_lmu', 'ollama_local', 'groq'
+    model = 'gpt-4-0125-preview' # gpt-4-0125-preview, mistral, mixtral-8x7b-32768
+    last_patch = None
+    feedback = None
+
+    for i in range(1):
+        patch = solver.generate_patch(i, args.issue, api, model, last_patch, feedback)
+        logs, result = env.apply_patch_and_test(patch)
+        last_patch = patch
+        feedback = logs
+        if result[0] == 1 and result[1] == 1:
+            break
+```
+
 ## Prerequisites
 
 Docker installed and running
