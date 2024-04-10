@@ -1,7 +1,7 @@
 import os
 import json
 
-from diff_patch_search.call_api import call_model
+from se_gym.call_api import call_model
 
 
 TASK_TYPES = {
@@ -34,7 +34,11 @@ JSON_SCHEMAS = {
 
 class Solver:
     def __init__(self, args):
-        for repo_path in args.repo_paths:
+
+        if os.path.exists("repo-description.txt"):
+            os.remove("repo-description.txt")
+
+        for repo_path in ['src', 'tests']:
             with open("repo-description.txt", 'a') as file:
                 self.print_directory_contents(repo_path, args.affected_files, file)
 
@@ -48,9 +52,10 @@ class Solver:
         json_schema_str = ', '.join([f"'{key}': {value}" for key, value in json_schema.items()])
 
         # Construct the system prompt with updated instruction
-        return (f"You are an expert software engineer capable of {TASK_TYPES[task_type][1]}. "
-                f"{specific_instruction} Please respond directly in the following JSON format: "
-                f"The JSON schema should include: {{{json_schema_str}}}. Provide nothing but the JSON output. ")
+        return (f"You are an expert software engineer capable of creating patch strings to solve issues in a Python repository."
+                f"Imagine that you have an executation environment with a Python interpreter from which you will receive feedback from your last patch string suggestion."
+                f"Please respond directly in the following JSON format: "
+                f"The JSON schema should include: {{{json_schema_str}}}. Provide nothing but the JSON output.")
     
     def print_directory_contents(self, path, affected_files, file):
         for root, dirs, files in os.walk(path):
@@ -69,7 +74,7 @@ class Solver:
                 file.write(f'{indent}{line_number}: {line.rstrip()}\n')
 
 
-    def generate_diff_patch(self, issue_description: str, api, model):
+    def generate_patch(self, iteration, issue_description, api, model, last_patch=None, feedback=None):
         
         with open("repo-description.txt", 'r') as file:
             repo_description = file.read()
@@ -77,9 +82,12 @@ class Solver:
         with open(issue_description, 'r') as file:
             issue = file.read()
 
-        user_prompt = f"""Please create a detailed implementation proposal for the described task and the following issue based on the provided code base.\n"""
-        user_prompt += f"""Code Base: {repo_description}\n"""
-        user_prompt += f"""Issue: {issue}\n"""
+        user_prompt = f"""Create a patch string based on the following issue description and the code base.\n"""
+        user_prompt += f"""Code Base:\n{repo_description}\n"""
+        user_prompt += f"""Issue:\n{issue}\n"""
+        if last_patch is not None and feedback is not None:
+            user_prompt += f"""Patch String from last suggestion:\n{last_patch}\n"""
+            user_prompt += f"""Feedback from execution environment:\n{feedback}"""
 
         for i, task_type in enumerate(TASK_TYPES.keys()):
 
@@ -88,7 +96,7 @@ class Solver:
             if not os.path.exists(f'{model}'):
                 os.mkdir(f'{model}')
 
-            with open(f'{model}/prompt-{i}.md', 'w') as file:
+            with open(f'{model}/prompt-{iteration}.md', 'w') as file:
                 file.write("System Prompt:\n")
                 file.write("----------------\n")
                 file.write(system_prompt)
@@ -96,6 +104,15 @@ class Solver:
                 file.write("User Prompt:\n")
                 file.write("--------------\n")
                 file.write(user_prompt)
+
+            """ with open(f'{model}/prompt-{i}.md', 'w') as file:
+                file.write("System Prompt:\n")
+                file.write("----------------\n")
+                file.write(system_prompt)
+                file.write("\n\n")
+                file.write("User Prompt:\n")
+                file.write("--------------\n")
+                file.write(user_prompt) """
             
             json_data = call_model(system_prompt, user_prompt, api, model)
             

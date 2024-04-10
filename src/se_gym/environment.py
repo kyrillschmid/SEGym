@@ -43,7 +43,7 @@ class Environment:
         container.remove(v={host_path: {'bind': container_path, 'mode': 'rw'}}, force=True)
         
         reward = parse_outputs(logs)
-        return reward
+        return logs, reward
 
 def parse_outputs(logs):
     patch_score = 0

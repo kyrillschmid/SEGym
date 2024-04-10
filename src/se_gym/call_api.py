@@ -2,7 +2,7 @@ from dotenv import load_dotenv
 from openai import OpenAI
 from groq import Groq
 import os
-from diff_patch_search.ollama_lmu import make_chat_request
+from se_gym.ollama_lmu import make_chat_request
 
 def call_model(system_prompt, user_prompt, api, model):
 

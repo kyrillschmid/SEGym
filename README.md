@@ -1,6 +1,11 @@
-# Package DiffPatchSearch
+# SEGym
 
-A repo to create patches for a given repository and issue and apply them.
+SEGym allows you to apply patches to Python packages and run tests in isolated environments.
+This allows you to automatically search for patches with some solver (e.g. with an LLM) until all tests are resolved.
+
+## Prerequisites
+
+Docker installed and running
 
 ## Installation
 
@@ -16,7 +21,7 @@ in the root directory (i.e., the directory where `pyproject.toml` and
 After building the package you can install it with pip:
 
 ```shell script
-pip install dist/diff_patch_search-0.0.1-py3-none-any.whl
+pip install dist/se_gym-0.0.1-py3-none-any.whl
 ```
 
 To install the package so that it can be used for development purposes
@@ -32,25 +37,41 @@ in the root directory.
 
 ## Models
 
-Either add a .env file to the root directory with your OpenAI API key:
+To use a standard one shot solver (GPT-4, Mistral, ...) add a .env file to the root directory with your API key:
 
 ```
 API_KEY=...
 ```
 
-or to use ollama uncomment the necessary lines in the `call_openai.py` file.
+see the notes for other APIs (ollama).
 
 ## Python
 
-Here I show how to use the tool to create a patch file and apply it to a repository e.g. the [PrimeFactors](https://github.com/kyrillschmid/PrimeFactors.git)
+After installing the package you can apply your solver to some repo with an open issue.
+For that within the root directory of the repository use the following command:
 
 To create a patch in the PrimeFactors repo, use the following command:
 
 ```
-diff-patch-search src tests --affected-files  primes.py main_test.py --issue issue.md
+se-gym --affected-files primes.py main_test.py --issue issue.md
 ```
 
-## Git
+The standard solver assumes that your repo contains a src and tests directory. For the standard
+solver you can specify which files are affected by that issue. Also pass the file where the issue
+is described.
+
+This command will create a docker image where your python package will be installed. For each generated patch
+a new docker container will be created, the patch applied and the tests will be executed.
+
+There are three possible outcomes which reflect how successful the patch is:
+
+1. Patch not applicable, tests fail : (0, 0)
+2. Patch applicable, tests fail : (1, 0)
+3. Patch applicable, all tests succeed (1, 1)
+
+## Apply patch
+
+he standard solver will create a directory `patches` where the generated patch is placed.
 
 To test the patch file, use the following command:
 
@@ -60,13 +81,8 @@ git apply --ignore-space-change --ignore-whitespace --verbose patchGPT.patch
 
 ## Docker
 
-To use docker to apply the patch and run the tests, create a docker image and run it.
+If you have a Docker related issues with the mounted volume on Mac, the following command might fix it:
 
 ```
-docker build -t prime_factor_image . 2> output.txt
-docker run --name PrimeFactors prime_factor_image
-docker cp PrimeFactors:/usr/src/app/test_output.txt ./test_output.txt
-```
-
-Docker issues
 sudo ln -s "$HOME/.docker/run/docker.sock" /var/run/docker.sock
+```
