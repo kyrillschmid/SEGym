@@ -56,14 +56,15 @@ see the notes for other APIs (ollama).
 ## Python
 
 After installing the package you can apply your solver to a repo with an open issue.
-Your repo needs to be pip installable! You can use this repo as template to make it installable!
+Your repo needs to be pip installable! You can use this [PythonEnv](https://github.com/kyrillschmid/PythonEnv.git) as a template for your Python package!
+
 To create a patch in a repo, navigate to the root directory and use the following command:
 
 ```
 se-gym --affected-files primes.py main_test.py --issue issue.md
 ```
 
-The standard solver assumes that your repo contains a src and tests directory. For the standard
+The standard solver assumes that your repo contains a `src` and `tests` directory. For the standard
 solver you can specify which files are affected by that issue. Also pass the file where the issue
 is described.
 
