@@ -1,7 +1,7 @@
 # SEGym
 
 SEGym allows you to simulate patches for Python repos in isolated environments.
-You can use such an environment to let a solver (e.g. LLM) search for a patch for a given issue until all tests are passed.
+You can use such an environment to let a solver (e.g. LLM) search for a patch for a given issue until the issue is resolved.
 
 Here is the main loop to be used by any solver:
 
