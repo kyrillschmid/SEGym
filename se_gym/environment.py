@@ -1,38 +1,64 @@
 import docker
 import tempfile
+import os
+import shutil
+import subprocess
+
+DOCKER_TAG = "pytest-env"
 
 
 class Environment:
-    def __init__(self):
+    def __init__(self, base_dir=None):
         self.client = docker.from_env()
         self.build_image_if_not_exists()
+        if base_dir is None:
+            base_dir = os.getcwd()
+        self.base_dir = base_dir
 
-    def build_image_if_not_exists(self, tag="python-env"):
-        # TODO: rebuild image if changes in repo detected
+    def build_image_if_not_exists(self, tag=DOCKER_TAG):
         try:
             image = self.client.images.get(tag)
         except docker.errors.ImageNotFound:
-            image = self.client.images.build(path=".", tag="python-env")
+            image = self.client.images.build(path=".", tag=DOCKER_TAG)
         except Exception as e:
             print(e)
             return None
         return image
 
-    def apply_patch_and_test(self, patch=None):
+    def apply_patch_and_test(self, patch: str, command: str = "pytest"):
         temp_dir = tempfile.mkdtemp()
-
+        shutil.copytree(
+            src=self.base_dir,
+            dst=f"{temp_dir}/repo",
+        )
         with open(f"{temp_dir}/file.patch", "w") as file:
             file.write(patch)
             file.write("\n")
 
-        host_path = temp_dir
-        container_path = "/patches"
+        try:
+            apply_log = subprocess.run(
+                [
+                    "git",
+                    "apply",
+                    "--ignore-space-change",
+                    "--ignore-whitespace",
+                    "--verbose",
+                    "./../file.patch",
+                ],
+                cwd=f"{temp_dir}/repo",
+                capture_output=True,
+                text=True,
+            )
+        except Exception as e:
+            return "", [0, 0]
+        if apply_log.returncode != 0:
+            return "", [0, 0]
 
         container = self.client.containers.run(
-            "python-env",
-            volumes={host_path: {"bind": container_path, "mode": "rw"}},
-            working_dir="/usr/src/app",
-            command="bash -c 'git apply /patches/file.patch --verbose && pytest tests/'",
+            DOCKER_TAG,
+            volumes={f"{temp_dir}/repo": {"bind": "/usr/app", "mode": "rw"}},
+            working_dir="/usr/app",
+            command=command,
             detach=True,
         )
 
@@ -40,21 +66,9 @@ class Environment:
         logs = container.logs().decode("utf-8")
         container.stop()
         container.remove(
-            v={host_path: {"bind": container_path, "mode": "rw"}}, force=True
+            v={f"{temp_dir}/repo": {"bind": "/usr/app", "mode": "rw"}}, force=True
         )
-
-        reward = parse_outputs(logs)
-        return logs, reward
-
-
-def parse_outputs(logs):
-    patch_score = 0
-    test_score = 0
-
-    if "Applied patch" in logs and "cleanly" in logs:
-        patch_score = 1
-
-    if "FAILURES" not in logs and patch_score == 1:
-        test_score = 1
-
-    return patch_score, test_score
+        if "FAILURES" not in logs:
+            return logs, [1, 1]
+        else:
+            return logs, [1, 0]
