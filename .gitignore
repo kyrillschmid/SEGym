@@ -5,6 +5,8 @@ __pycache__
 /diff-patch-search
 diff_patch_search-0.0.1*
 repo-description.txt
+playground*
+temp/
 
 # Created by https://www.toptal.com/developers/gitignore/api/visualstudiocode,python,jupyternotebooks
 # Edit at https://www.toptal.com/developers/gitignore?templates=visualstudiocode,python,jupyternotebooks

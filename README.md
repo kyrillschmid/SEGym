@@ -1,5 +1,11 @@
 # SEGym
 
+# THIS IS A WORK IN PROGRESS FORK OF THE ORIGINAL REPO
+## TODO
+- [ ] Restore script entry point
+- [ ] Restore original README and script
+
+
 SEGym allows you to simulate patches for Python repos in isolated environments.
 You can use such an environment to let a solver (e.g. LLM) search for a patch for a given issue until the issue is resolved.
 
@@ -72,8 +78,12 @@ Your repo needs to be pip installable! You can use this [PythonEnv](https://gith
 
 To create a patch in a repo, navigate to the root directory and use the following command:
 
-```
+<!-- ```
 se-gym --affected-files file-1.py file-2.py --issue issue.md
+``` -->
+(Download test files using `pytest se_gym`. Tests sometimes fail due to stochastic nature of the models.)
+```
+python main.py --base-dir ./temp/barcode --api ollama_lmu --issue ./temp/barcode_issue.md --model "llama3:latest" 
 ```
 
 The standard solver assumes that your repo contains a `src` and `tests` directory. For the standard
