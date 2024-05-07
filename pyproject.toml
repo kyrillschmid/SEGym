@@ -1,6 +1,36 @@
-[build-system]
-requires = [
-    "setuptools>=61",
-    "wheel"
+[tool.poetry]
+name = "segymfork"
+version = "0.0.2"
+authors = [
+    "Dr. Kyrill Schmid <kyrillschmid@web.de>",
+    "Gerhard Stenzel <gerhard.stenzel@ifi.lmu.de>"
 ]
-build-backend = "setuptools.build_meta"
+readme = "README.md"
+description = "SEGym allows you to apply patches to Python packages and run tests in isolated environments."
+license = "MIT"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+annotated-types = "^0.6.0"
+docker = "^7.0.0"
+groq = "^0.4.2"
+iniconfig = "^2.0.0"
+openai = "^1.16.2"
+pydantic = "^2.6.4"
+pydantic_core = "^2.16.3"
+pyproject_hooks = "^1.0.0"
+pytest = "^8.1.1"
+python-dotenv = "^1.0.1"
+requests = "^2.31.0"
+tqdm = "^4.66.2"
+typing_extensions = "^4.11.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
