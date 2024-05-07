@@ -1,8 +1,10 @@
 import argparse
 import os
 
-from se_gym.environment import Environment
-from se_gym.solver import Solver
+# from se_gym.environment import Environment
+# from se_gym.solver import Solver
+
+from se_gym import Environment, Solver
 
 
 def main():
@@ -29,13 +31,19 @@ def main():
     parser.add_argument(
         "--issue", type=str, help="Path to the issue description file", default=None
     )
+    parser.add_argument(
+        "--base-dir",
+        type=str,
+        help="Base directory of the repository to describe",
+        default=os.getcwd(),
+    )
     args = parser.parse_args()
 
     if not args.issue:
         parser.error("the following arguments are required: issue")
 
     solver = Solver(affected_files=args.affected_files)
-    env = Environment()
+    env = Environment(base_dir=args.base_dir)
 
     if not args.api:
         api = "groq"  # 'openai' , 'ollama_lmu', 'ollama_local', 'groq'
