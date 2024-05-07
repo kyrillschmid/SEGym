@@ -73,10 +73,15 @@ class Solver:
         for i, task_type in enumerate(TASK_TYPES.keys()):
             system_prompt = self.get_system_prompt(task_type)
 
-            if not os.path.exists(f"{model}"):
-                os.mkdir(f"{model}")
+            modelpath = slugify(model)
+            if not os.path.exists(f"{modelpath}"):
+                os.mkdir(f"{modelpath}")
+            with open(f"{modelpath}/.gitignore", "w") as file:
+                file.write("*")
 
-            with open(f"{model}/prompt-iteration-{iteration}-task-{i}.md", "w") as file:
+            with open(
+                f"{modelpath}/prompt-iteration-{iteration}-task-{i}.md", "w"
+            ) as file:
                 file.write("System Prompt:\n")
                 file.write("----------------\n")
                 file.write(system_prompt)
@@ -93,12 +98,12 @@ class Solver:
             user_prompt += f"""{TASK_TYPES[task_type][1]}: {json_data}\n"""
 
             # Create a new file
-            with open(f"{model}/{task_type}.md", "w") as file:
+            with open(f"{modelpath}/{task_type}.md", "w") as file:
                 file.write(json_data)
 
             if task_type == "create_patch_string":
                 # write the patch to a file
-                with open(f"{model}/{task_type}.patch", "w") as file:
+                with open(f"{modelpath}/{task_type}.patch", "w") as file:
                     patch_dict = json.loads(json_data)
                     patch_string = patch_dict["patch_string"]
                     file.write(patch_string)
@@ -123,3 +128,27 @@ class Solver:
         with open(file_path, "r") as read_file:
             for line_number, line in enumerate(read_file, start=1):
                 file.write(f"{indent}{line_number}: {line.rstrip()}\n")
+
+
+def slugify(value, allow_unicode=False):
+    """
+    Taken from Django's https://github.com/django/django/blob/main/django/utils/text.py
+    Convert to ASCII if 'allow_unicode' is False. Convert spaces or repeated
+    dashes to single dashes. Remove characters that aren't alphanumerics,
+    underscores, or hyphens. Convert to lowercase. Also strip leading and
+    trailing whitespace, dashes, and underscores.
+    """
+    import unicodedata
+    import re
+
+    value = str(value)
+    if allow_unicode:
+        value = unicodedata.normalize("NFKC", value)
+    else:
+        value = (
+            unicodedata.normalize("NFKD", value)
+            .encode("ascii", "ignore")
+            .decode("ascii")
+        )
+    value = re.sub(r"[^\w\s-]", "", value.lower())
+    return re.sub(r"[-\s]+", "-", value).strip("-_")
