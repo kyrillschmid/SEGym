@@ -4,6 +4,8 @@
 ## TODO
 - [ ] Restore script entry point
 - [ ] Restore original README and script
+- [ ] Log incorrectly generated patches instead of just fixing them 
+- [ ] Make entire docker container generation async to always have a container ready
 
 
 SEGym allows you to simulate patches for Python repos in isolated environments.
