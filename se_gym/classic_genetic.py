@@ -8,7 +8,7 @@ import pydantic
 import instructor
 import random
 
-from .caller import get_format_instructions
+from .sampler import get_format_instructions
 
 prompt = typing.Annotated[str, "Prompt to an LLM"]
 

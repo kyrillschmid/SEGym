@@ -66,5 +66,5 @@ def test_apply_patch_invalid():
 def test_apply_patch_and_test_invalid():
     download_dummy_repo()
     tree = se_gym.apply_patch_and_test("./temp/dummy", INVALID_TEST_PATH)
-    res = se_gym.executor.parse_pytest_xml(tree)
+    res = se_gym.runner.parse_pytest_xml(tree)
     assert res["tests.my_test.test_main"]["status"] == "failed"

@@ -13,11 +13,9 @@ import os
 import shutil
 import xml.etree.ElementTree as ET
 
-DOCKER_TAG = "pytest-env"
+from . import config
 
 logger = logging.getLogger("docker_connector")
-
-GIT_APPLY_PATCH = "git apply --ignore-space-change --ignore-whitespace --verbose --recount --inaccurate-eof ./file.patch"
 
 
 class MalformedPatchException(Exception):
@@ -38,13 +36,13 @@ class DockerConnector:
             sys.exit(1)
         self.build_image_if_not_exists()
 
-    def build_image_if_not_exists(self, tag=DOCKER_TAG):
+    def build_image_if_not_exists(self, tag=config.DOCKER_TAG):
         try:
             logger.info("Building docker image")
             image = self.client.images.get(tag)
         except docker.errors.ImageNotFound:
             logger.info("Image not found, building new image")
-            image = self.client.images.build(path=".", tag=DOCKER_TAG)
+            image = self.client.images.build(path=".", tag=config.DOCKER_TAG)
         except Exception as e:
             logger.critical("Docker is not running", e)
             sys.exit(1)
@@ -67,7 +65,7 @@ class Container:
     def __init__(self, mount_dir: str):
         self.mount_dir = mount_dir
         self.container = DockerConnector.get_instance().client.containers.run(
-            image=DOCKER_TAG,
+            image=config.DOCKER_TAG,
             detach=True,
             volumes={mount_dir: {"bind": "/repo", "mode": "rw"}},
             working_dir="/repo",
@@ -124,7 +122,7 @@ def apply_patch(code_base_root: str, patch: str):
         patch (str): The patch to apply to the codebase. This file might be corrupted, in which case the function will raise an MalformedPatchException.
     """
     executor = CodeExecutor(code_base_root, patch)
-    apply_log = executor.container.run_command(GIT_APPLY_PATCH)  # Try to patch
+    apply_log = executor.container.run_command(config.GIT_APPLY_PATCH)  # Try to patch
     executor.destroy()
     # Check if the patch was applied successfully
     if apply_log.exit_code != 0:
@@ -150,7 +148,7 @@ def apply_patch_and_test(
     """
 
     executor = CodeExecutor(code_base_root, patch)
-    apply_log = executor.container.run_command(GIT_APPLY_PATCH)  # Try to patch
+    apply_log = executor.container.run_command(config.GIT_APPLY_PATCH)  # Try to patch
     if apply_log.exit_code != 0:  # this shouldn't be happening
         outp = apply_log.output.decode("utf-8")
         logger.error("Failed to apply patch", outp)

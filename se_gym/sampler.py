@@ -16,8 +16,8 @@ import logging
 import tenacity
 import time
 
-MAX_RETRIES = 5
-TIMEOUT_SECONDS = 30
+from . import config
+
 logger = logging.getLogger("caller")
 
 
@@ -126,45 +126,21 @@ class Sampler:
                 model=self.model_name,
                 messages=messages,
                 response_model=Patch,
-                max_retries=MAX_RETRIES,
-                timeout=TIMEOUT_SECONDS,
+                max_retries=config.MAX_RETRIES,
+                timeout=config.TIMEOUT_SECONDS,
             )
             logger.debug(f"API call took {time.time() - start_time} seconds")
             return resp.patch_file
         except instructor.retry.InstructorRetryException as e:
             logger.info(
-                f"Failed to get a valid response after {MAX_RETRIES} attempts, last error:",
+                f"Failed to get a valid response after {config.MAX_RETRIES} attempts, last error:",
                 e,
             )
             raise SamplerInvalidPatchException(e)
         except openai.APITimeoutError as e:
             logger.info(
-                f"API call timed out after {TIMEOUT_SECONDS} seconds \
+                f"API call timed out after {config.TIMEOUT_SECONDS} seconds \
                         (took {time.time() - start_time}), last error:",
                 e,
             )
             raise SamplerTimeoutException(e)
-
-
-def slugify(value, allow_unicode=False):
-    """
-    Taken from Django's https://github.com/django/django/blob/main/django/utils/text.py
-    Convert to ASCII if 'allow_unicode' is False. Convert spaces or repeated
-    dashes to single dashes. Remove characters that aren't alphanumerics,
-    underscores, or hyphens. Convert to lowercase. Also strip leading and
-    trailing whitespace, dashes, and underscores.
-    """
-    import unicodedata
-    import re
-
-    value = str(value)
-    if allow_unicode:
-        value = unicodedata.normalize("NFKC", value)
-    else:
-        value = (
-            unicodedata.normalize("NFKD", value)
-            .encode("ascii", "ignore")
-            .decode("ascii")
-        )
-    value = re.sub(r"[^\w\s-]", "", value.lower())
-    return re.sub(r"[-\s]+", "-", value).strip("-_")
