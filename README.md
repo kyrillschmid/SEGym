@@ -6,77 +6,41 @@
 - [ ] Restore original README and script
 - [ ] Log incorrectly generated patches instead of just fixing them 
 - [ ] Make entire docker container generation async to always have a container ready
+- [x] Integrate https://huggingface.co/datasets/princeton-nlp/SWE-bench_Lite
+- [ ] Integrate into W&B for logging
+- [ ] Automatically read `devcontainer.json`, `.github/workflows`, ... to determine test commands and environment
 
 
 SEGym allows you to simulate patches for Python repos in isolated environments.
 You can use such an environment to let a solver (e.g. LLM) search for a patch for a given issue until the issue is resolved.
 
-Here is the main loop to be used by any solver:
 
-```python
-for i in range(1):
-    patch = solver.generate_patch(i, args.issue, api, model, last_patch, feedback)
-    logs, result = env.apply_patch_and_test(patch)
-    last_patch = patch
-    feedback = logs
-    if result[0] == 1 and result[1] == 1:
-        break
-```
 
 ## Prerequisites
 
-Docker installed and running
-
-Create virtualenv:
-
-```
-python3 -m venv ~/.se_gym
-source ~/.se_gym/bin/activate
-pip install -r requirements.txt
-```
+Docker installed and running. `poetry` installed.
+Setup python environment using `poetry install`
 
 ## Installation
 
-To build the project use
-
-```shell script
-python -m build
-```
-
-in the root directory (i.e., the directory where `pyproject.toml` and
-`setup.cfg` live).
-
-After building the package you can install it with pip:
-
-```shell script
-pip install dist/se_gym-0.0.1-py3-none-any.whl
-```
-
-To install the package so that it can be used for development purposes
-install it with
-
-```shell script
-pip install -e .
-```
-
-in the root directory.
+Currently only usable as a module, not as a script.
 
 ## Working with the project
 
-## Models
+### Models
 
-To use a standard one shot solver (GPT-4, Mistral, ...) add a .env file to the root directory with your API key:
+Supply your own `openai.Client` compatible API.
 
-```
-API_KEY=...
-```
+FOR LMU: use `openai_lmu.get_lmu_openai_client()` to get a ready-to-use client.
 
-see the notes for other APIs (ollama).
-
-## Python
+### Python
 
 After installing the package you can apply your solver to a repo with an open issue.
 Your repo needs to be pip installable! You can use this [PythonEnv](https://github.com/kyrillschmid/PythonEnv.git) as a template for your Python package!
+
+
+
+
 
 To create a patch in a repo, navigate to the root directory and use the following command:
 
@@ -122,10 +86,5 @@ Run tests:
 pytest
 ```
 
-## Docker
-
-If you have a Docker related issues with the mounted volume on Mac, the following command might fix it:
-
-```
-sudo ln -s "$HOME/.docker/run/docker.sock" /var/run/docker.sock
-```
+### Docker
+If you have a Docker related issues with the mounted volume on Mac, the following command might fix it: `sudo ln -s "$HOME/.docker/run/docker.sock" /var/run/docker.sock`
