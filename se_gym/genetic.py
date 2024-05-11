@@ -9,6 +9,9 @@ import instructor
 import random
 
 from .sampler import get_format_instructions
+from . import config
+
+__dict__ = ["Population", "LLMPopulation"]
 
 prompt = typing.Annotated[str, "Prompt to an LLM"]
 
@@ -103,7 +106,7 @@ class Population:
     def mutate(self, parent: prompt, fitness: float):
         schema = get_format_instructions(Child)
         resp = self.client.chat.completions.create(
-            model="llama3:8b",
+            model=config.MODEL_NAME,
             messages=get_messages(
                 MUTATION_SYSTEM_PROMPT.format(fitness=fitness, schema=schema),
                 MUTATION_USER_PROMPT.format(fitness=fitness, parent=parent),
@@ -119,7 +122,7 @@ class Population:
         schema = get_format_instructions(Children)
 
         resp = self.client.chat.completions.create(
-            model="llama3:8b",
+            model=config.MODEL_NAME,
             messages=get_messages(
                 CROSSOVER_SYSTEM_PROMPT.format(
                     fitness1=fitness1, fitness2=fitness2, schema=schema
@@ -169,3 +172,9 @@ class Population:
         while len(new_population) < len(self.individuals):
             new_population.append(random.choice(self.individuals))
         self.individuals = new_population  # update the population
+
+
+class LLMPopulation:
+    """
+    Instead of using crossover, mutation and selection, we can use only an LLM model to generate new prompts. It should take all prompts and their fitness scores as input and generate a new set of prompts.
+    """
