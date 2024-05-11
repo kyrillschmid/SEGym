@@ -1,7 +1,7 @@
 import se_gym
 import pytest
 
-client = se_gym.openai_lmu.get_openai_client()
+client = se_gym.openai_lmu.get_lmu_openai_client()
 
 BIG_MODEL = "llama3:70b"
 SMALL_MODEL = "llama3:8b"

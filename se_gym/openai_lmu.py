@@ -1,4 +1,4 @@
-def get_openai_client():
+def get_lmu_openai_client():
     import openai
     import httpx
     import os
