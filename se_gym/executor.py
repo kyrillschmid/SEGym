@@ -11,6 +11,7 @@ import sys
 import stat
 import os
 import shutil
+import xml.etree.ElementTree as ET
 
 DOCKER_TAG = "pytest-env"
 
@@ -19,7 +20,15 @@ logger = logging.getLogger("docker_connector")
 GIT_APPLY_PATCH = "git apply --ignore-space-change --ignore-whitespace --verbose --recount --inaccurate-eof ./file.patch"
 
 
+class MalformedPatchException(Exception):
+    pass
+
+
 class DockerConnector:
+    """
+    DockerConnector is a singleton class that connects to the Docker daemon and builds the Docker image if it does not exist.
+    """
+
     def __init__(self):
         try:
             self.client = docker.from_env()
@@ -50,11 +59,11 @@ class DockerConnector:
         return DockerConnector.instance
 
 
-class MalformedPatchException(Exception):
-    pass
-
-
 class Container:
+    """
+    Container is a wrapper around a Docker container. It is used to run commands in the container and cleans up after itself.
+    """
+
     def __init__(self, mount_dir: str):
         self.mount_dir = mount_dir
         self.container = DockerConnector.get_instance().client.containers.run(
@@ -67,18 +76,43 @@ class Container:
         )
 
     def run_command(self, command: str):
+        logger.debug(f"Running command {command}")
         return self.container.exec_run(cmd=command, stdout=True, stderr=True)
 
-    def stop(self):
+    def destroy(self):
         self.container.stop()
         self.container.remove(
             v={self.mount_dir: {"bind": "/repo", "mode": "rw"}}, force=True
         )
 
 
-def _shutil_onexc(func, path, exc_info):
-    os.chmod(path, stat.S_IWRITE)
-    os.unlink(path)
+class CodeExecutor:
+    """
+    CodeExecutor is a wrapper around a Docker container. It copies the codebase for the container, and cleans up after itself.
+    """
+
+    def __init__(self, code_base_root: str, patch: str):
+        self.code_base_root = code_base_root
+        self.patch = patch
+        self.temp_dir = tempfile.mkdtemp(prefix="se_gym_")
+        logger.debug(f"Created temporary directory {self.temp_dir}")
+        shutil.copytree(src=code_base_root, dst=f"{self.temp_dir}/", dirs_exist_ok=True)
+        with open(f"{self.temp_dir}/file.patch", "w") as file:
+            file.write(patch)
+        self.container = Container(mount_dir=self.temp_dir)  # start a container
+
+    def destroy(self):
+        """
+        Tear down the container and remove the temporary directory.
+        """
+        self.container.destroy()
+        shutil.rmtree(self.temp_dir, onexc=CodeExecutor._shutil_onexc)
+
+    @staticmethod
+    def _shutil_onexc(func, path, exc_info):
+        """Error handler for ``shutil.rmtree``."""
+        os.chmod(path, stat.S_IWRITE)
+        os.unlink(path)
 
 
 def apply_patch(code_base_root: str, patch: str):
@@ -89,27 +123,69 @@ def apply_patch(code_base_root: str, patch: str):
         code_base_root (str): The root directory of the codebase. The directory will be copied and the patch will be applied to the copy. The original codebase will not be modified. The codebase should be a git repository.
         patch (str): The patch to apply to the codebase. This file might be corrupted, in which case the function will raise an MalformedPatchException.
     """
-    # Create a temporary directory to store the codebase
-    temp_dir = tempfile.mkdtemp(prefix="se_gym_")
-    logger.debug(f"Created temporary directory {temp_dir}")
-    # Copy the codebase to the temporary directory
-    shutil.copytree(src=code_base_root, dst=f"{temp_dir}/", dirs_exist_ok=True)
-
-    with open(f"{temp_dir}/file.patch", "w") as file:
-        file.write(patch)  # Write the patch to a file
-
-    container = Container(mount_dir=temp_dir)  # Start a container with the codebase
-    apply_log = container.run_command(GIT_APPLY_PATCH)  # Try to patch
-
-    # Tear down the container
-    container.stop()
-
-    # remove the temporary directory
-    shutil.rmtree(temp_dir, onexc=_shutil_onexc)
-
+    executor = CodeExecutor(code_base_root, patch)
+    apply_log = executor.container.run_command(GIT_APPLY_PATCH)  # Try to patch
+    executor.destroy()
     # Check if the patch was applied successfully
     if apply_log.exit_code != 0:
         outp = apply_log.output.decode("utf-8")
         logger.info("Failed to apply patch", outp)
         raise MalformedPatchException("Failed to apply patch", outp)
     logger.info("Patch applied successfully")
+
+
+def apply_patch_and_test(
+    code_base_root: str, patch: str, command: str = "pytest --junitxml=testresults.xml"
+) -> ET.Element:
+    """
+    Apply a patch to a codebase and run tests on it.
+
+    Args:
+        code_base_root (str): The root directory of the codebase.
+        patch (str): The patch to apply to the codebase. This file should be a valid patch.
+        command (str): The command to run in the container. Defaults to "pytest".
+
+    Returns:
+        ET.Element: The XML tree of the test results.
+    """
+
+    executor = CodeExecutor(code_base_root, patch)
+    apply_log = executor.container.run_command(GIT_APPLY_PATCH)  # Try to patch
+    if apply_log.exit_code != 0:  # this shouldn't be happening
+        outp = apply_log.output.decode("utf-8")
+        logger.error("Failed to apply patch", outp)
+        raise MalformedPatchException("Failed to apply patch", outp)
+    test_log = executor.container.run_command(command)  # Run the tests
+    test_xml = executor.container.run_command("cat testresults.xml")
+    executor.destroy()
+    xml_str = test_xml.output.decode("utf-8")
+    tree = ET.fromstring(xml_str)
+    return tree
+
+
+def parse_pytest_xml(tree: ET.Element) -> dict:
+    """
+    Parse the XML tree of a pytest test result.
+
+    Args:
+        tree (ET.Element): The XML tree of the test results.
+
+    Returns:
+        dict: A dictionary containing the test results. The keys are the test names and the values are dictionaries containing the status and the message of the test, if it failed or errored.
+    """
+    test_results = {}
+    for testcase in tree.iter("testcase"):
+        test_name = testcase.get("classname") + "." + testcase.get("name")
+        test_results[test_name] = {}
+        if testcase.find("failure") is not None:
+            test_results[test_name]["status"] = "failed"
+            test_results[test_name]["message"] = testcase.find("failure").text
+        elif testcase.find("error") is not None:
+            test_results[test_name]["status"] = "error"
+            test_results[test_name]["message"] = testcase.find("error").text
+        elif testcase.find("skipped") is not None:
+            test_results[test_name]["status"] = "skipped"
+            test_results[test_name]["message"] = testcase.find("skipped").text
+        else:
+            test_results[test_name]["status"] = "passed"
+    return test_results

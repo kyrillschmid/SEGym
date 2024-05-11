@@ -13,6 +13,7 @@ def download_dummy_repo():
         os.system(
             "git clone https://github.com/kyrillschmid/PythonEnv --depth 1  ./temp/dummy"
         )
+        open("./temp/dummy/src/python_env/__init__.py", "w").close()
 
 
 APPLICABLE_PATCH = """\
@@ -48,13 +49,22 @@ index 0000000..5d308e1
 @@ -0,0 +1 @@
 +This is a new file."""
 
+INVALID_TEST_PATH = APPLICABLE_PATCH
+
 
 def test_apply_patch_valid():
     download_dummy_repo()
-    se_gym.executor.apply_patch("./temp/dummy", APPLICABLE_PATCH)
+    se_gym.apply_patch("./temp/dummy", APPLICABLE_PATCH)
 
 
 def test_apply_patch_invalid():
     download_dummy_repo()
-    with pytest.raises(se_gym.executor.MalformedPatchException):
-        se_gym.executor.apply_patch("./temp/dummy", UNAPPLICABLE_PATCH)
+    with pytest.raises(se_gym.MalformedPatchException):
+        se_gym.apply_patch("./temp/dummy", UNAPPLICABLE_PATCH)
+
+
+def test_apply_patch_and_test_invalid():
+    download_dummy_repo()
+    tree = se_gym.apply_patch_and_test("./temp/dummy", INVALID_TEST_PATH)
+    res = se_gym.executor.parse_pytest_xml(tree)
+    assert res["tests.my_test.test_main"]["status"] == "failed"

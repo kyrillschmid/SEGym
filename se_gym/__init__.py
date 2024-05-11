@@ -4,4 +4,4 @@ from .environment import Environment
 from .observations import *
 from .caller import Sampler
 from .openai_lmu import get_openai_client
-from .executor import apply_patch
+from .executor import apply_patch, apply_patch_and_test, MalformedPatchException
