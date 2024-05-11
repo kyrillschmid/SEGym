@@ -1,6 +1,7 @@
 import abc
 import os
 import warnings
+import tree_sitter
 
 
 class Observer(abc.ABC):
@@ -66,8 +67,16 @@ class VectorStoreObserver(Observer):
     """
 
 
+class TreeSitterObeserver(Observer):
+    """
+    Use TreeSitter to parse the code and return the relevant files.
+    """
+
+
 class CodeMapObserver(Observer):
     """
     Let an LLM create a code map, summarizing the contents of each file, then each directory.
     Return the relevant files by first selecting the most relevant directories, then the most relevant files in those directories.
+
+    Optimize LLM to create better map and better queries.
     """

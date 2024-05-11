@@ -56,7 +56,7 @@ class Patch(pydantic.BaseModel):
         if not patch_str.startswith("diff --git a/"):
             logger.debug("Invalid patch file", patch_str)
             raise ValueError("Patch file must start with 'diff --git a/'")
-        # TODO: Validate that the patch file is a valid .patch file
+        # TODO: Validate that the patch file is a valid .patch file by checking in the docker container. Currently too slow.
         return patch_str
 
 
@@ -104,8 +104,9 @@ class Sampler:
             instructor.retry.InstructorRetryException: If the model fails to generate a valid response after MAX_RETRIES attempts
             openai.APITimeoutError: If the API call times out after TIMEOUT_SECONDS seconds
 
+
         TODO:
-        change `max_retries=MAX_RETRIES,` to 
+        change `max_retries=MAX_RETRIES,` to
         ```
                 max_retries=tenacity.Retrying(
                     stop=tenacity.stop_after_attempt(MAX_RETRIES),
@@ -143,3 +144,27 @@ class Sampler:
                 e,
             )
             raise SamplerTimeoutException(e)
+
+
+def slugify(value, allow_unicode=False):
+    """
+    Taken from Django's https://github.com/django/django/blob/main/django/utils/text.py
+    Convert to ASCII if 'allow_unicode' is False. Convert spaces or repeated
+    dashes to single dashes. Remove characters that aren't alphanumerics,
+    underscores, or hyphens. Convert to lowercase. Also strip leading and
+    trailing whitespace, dashes, and underscores.
+    """
+    import unicodedata
+    import re
+
+    value = str(value)
+    if allow_unicode:
+        value = unicodedata.normalize("NFKC", value)
+    else:
+        value = (
+            unicodedata.normalize("NFKD", value)
+            .encode("ascii", "ignore")
+            .decode("ascii")
+        )
+    value = re.sub(r"[^\w\s-]", "", value.lower())
+    return re.sub(r"[-\s]+", "-", value).strip("-_")
