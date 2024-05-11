@@ -29,3 +29,15 @@ def num_failed_tests(test_results: dict) -> int:
             if v["status"] == "failed" or v["status"] == "error"
         ]
     )
+
+
+def execution_speed() -> float:
+    """
+    Calculate the end-to-end execution speed of the LLM generation. This might incentivize the solver to generate correct patches faster (no retries), but might also incentivize the solver to generate less tests.
+    """
+
+
+def number_retries() -> float:
+    """
+    Calculate the number of iterations a model needs to fix an issue. This might incentivize the solver to create larger patches, fixing multiple steps at once.
+    """
