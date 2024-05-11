@@ -77,16 +77,14 @@ class SamplerTimeoutException(Exception):
 
 
 class Sampler:
-    def __init__(self, llm_client: openai.Client, model_name: str):
+    def __init__(self, llm_client: openai.Client):
         """
         Create a new Sampler for patch generation.
 
         Args:
             llm_client: OpenAI client object. It will be patched with instructor.
-            model_name: Name of the model to use
         """
         self.llm_client = instructor.patch(llm_client, mode=instructor.Mode.JSON)
-        self.model_name = model_name
         self.create_patch = self.__call__
 
     def __call__(self, system_prompt: str, context: str) -> str:
@@ -123,7 +121,7 @@ class Sampler:
         start_time = time.time()
         try:
             resp = self.llm_client.chat.completions.create(
-                model=self.model_name,
+                model=config.MODEL_NAME,
                 messages=messages,
                 response_model=Patch,
                 max_retries=config.MAX_RETRIES,
