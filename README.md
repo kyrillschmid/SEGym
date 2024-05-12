@@ -9,6 +9,7 @@
 - [x] Integrate https://huggingface.co/datasets/princeton-nlp/SWE-bench_Lite
 - [ ] Integrate into W&B for logging
 - [ ] Automatically read `devcontainer.json`, `.github/workflows`, ... to determine test commands and environment
+- [ ] Improve DX by allow guessing of oracle observer files
 
 
 SEGym allows you to simulate patches for Python repos in isolated environments.

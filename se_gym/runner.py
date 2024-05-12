@@ -11,11 +11,12 @@ import sys
 import stat
 import os
 import shutil
+import subprocess
 import xml.etree.ElementTree as ET
 
 from . import config
 
-logger = logging.getLogger("docker_connector")
+logger = logging.getLogger("dockerconnector")
 
 
 class MalformedPatchException(Exception):
@@ -38,7 +39,7 @@ class DockerConnector:
 
     def build_image_if_not_exists(self, tag=config.DOCKER_TAG):
         try:
-            logger.info("Building docker image")
+            logger.info("Getting docker image")
             image = self.client.images.get(tag)
         except docker.errors.ImageNotFound:
             logger.info("Image not found, building new image")
@@ -111,6 +112,28 @@ class CodeExecutor:
         """Error handler for ``shutil.rmtree``."""
         os.chmod(path, stat.S_IWRITE)
         os.unlink(path)
+
+
+def check_patch(code_base_root: str, patch: str):
+    """
+    Check if a patch can be applied to a codebase. The codebase will not be modified.
+
+    Args:
+        code_base_root (str): The root directory of the codebase.
+        patch (str): The patch to apply to the codebase. This file might be corrupted, in which case the function will raise an MalformedPatchException.
+    """
+    with open(f"{code_base_root}/file.patch", "w") as file:
+        file.write(patch)
+    rand_path = f"./temp{str(time.time())}_file.patch"
+    with open(rand_path, "w") as file:
+        file.write(patch)
+        logger.debug(f"writing patch to file {rand_path}")
+    res = subprocess.check_output(args=config.GIT_CHECK_PATCH, cwd=code_base_root)
+    if res.returncode != 0:
+        logger.info(
+            f"Failed to apply patch STDOUT:{res.stdout} STDERR:{res.stderr} PATCH:{patch}"
+        )
+        raise MalformedPatchException("Failed to apply patch", res.stdout)
 
 
 def apply_patch(code_base_root: str, patch: str):

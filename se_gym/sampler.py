@@ -17,6 +17,7 @@ import tenacity
 import time
 
 from . import config
+from . import runner
 
 logger = logging.getLogger("caller")
 
@@ -38,26 +39,36 @@ The output should be formatted as a JSON instance that conforms to the JSON sche
 As an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}
 the object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.\n
 Here is the output schema: \n\n
-```"""
+```\n"""
         + schema_str
-        + """ ``` """
+        + """\n```
+ONLY REPLY USING JSON FORMAT. DO NOT INCLUDE ANYTHING ELSE IN YOUR RESPONSE.
+
+EXAMPLE:
+Good patch files look like this: 
+```
+diff --git a/src/python_env/__main__.py b/src/python_env/__main__.py
+index 2b39a9f..f1e21b3 100644
+--- a/src/python_env/__main__.py
++++ b/src/python_env/__main__.py
+@@ -2,8 +2,10 @@
+
+ def main():
+     print("hello world")
+-    return 2
++    # return 2
++    return 3
+
+
+ if __name__ == "__main__":
++    print("Calling main function...")
+     main()
+```
+It modifies an existing file. The added lines start with a '+', the removed lines start with a '-'. In the header, starting with 'diff --git a/', the file paths are specified. In the section with @@ the line numbers are specified. \n
+Embed good patch files in a JSON object with the key "patch_file".\n
+"""
     )
     return schema_prompt
-
-
-class Patch(pydantic.BaseModel):
-    patch_file: str = pydantic.Field(
-        description="Contents of a .patch file to change the codebase. Starts with 'diff --git a/'"
-    )
-
-    @pydantic.field_validator("patch_file")
-    @classmethod
-    def ensure_valid_patch(cls, patch_str: str) -> str:
-        if not patch_str.startswith("diff --git a/"):
-            logger.debug("Invalid patch file", patch_str)
-            raise ValueError("Patch file must start with 'diff --git a/'")
-        # TODO: Validate that the patch file is a valid .patch file by checking in the docker container. Currently too slow.
-        return patch_str
 
 
 class SamplerInvalidPatchException(Exception):
@@ -77,7 +88,7 @@ class SamplerTimeoutException(Exception):
 
 
 class Sampler:
-    def __init__(self, llm_client: openai.Client):
+    def __init__(self, llm_client: openai.Client, code_base_root: str = None):
         """
         Create a new Sampler for patch generation.
 
@@ -86,6 +97,31 @@ class Sampler:
         """
         self.llm_client = instructor.patch(llm_client, mode=instructor.Mode.JSON)
         self.create_patch = self.__call__
+
+        class Patch(pydantic.BaseModel):
+            patch_file: str = pydantic.Field(
+                description="Contents of a .patch file to change the codebase. Starts with 'diff --git a/'"
+            )
+
+            @pydantic.field_validator("patch_file")
+            @classmethod
+            def ensure_valid_patch(cls, patch_str: str) -> str:
+                if not patch_str.startswith("diff --git a/"):
+                    logger.debug(f"Invalid patch file {patch_str}")
+                    raise ValueError("Patch file must start with 'diff --git a/'")
+                if code_base_root is not None:
+                    try:
+                        runner.check_patch(code_base_root, patch_str)
+                    except Exception as e:
+                        logger.debug(f"Invalid patch file {patch_str} error {e}")
+                        raise e
+                else:
+                    logger.debug(
+                        "No code base root provided, skipping patch validation"
+                    )
+                return patch_str
+
+        self.PATCH_CLASS = Patch
 
     def __call__(self, system_prompt: str, context: str) -> str:
         """
@@ -113,17 +149,22 @@ class Sampler:
         ```
         to log the invalid responses
         """
-        system_prompt_instruct = system_prompt + get_format_instructions(Patch)
+        system_prompt_instruct = system_prompt + get_format_instructions(
+            self.PATCH_CLASS
+        )
         messages = [
             {"role": "system", "content": system_prompt_instruct},
             {"role": "user", "content": context},
         ]
         start_time = time.time()
+        logger.debug(
+            f"Calling LLM with system prompt: {system_prompt_instruct} and context: {context}"
+        )
         try:
             resp = self.llm_client.chat.completions.create(
                 model=config.MODEL_NAME,
                 messages=messages,
-                response_model=Patch,
+                response_model=self.PATCH_CLASS,
                 max_retries=config.MAX_RETRIES,
                 timeout=config.TIMEOUT_SECONDS,
             )

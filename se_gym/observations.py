@@ -3,6 +3,34 @@ import os
 import warnings
 import tree_sitter
 
+from . import api
+
+
+def _get_issue(state: api.State):
+    return f"""\n\n
+=========================
+<ISSUE DESCRIPTION>
+=========================
+\n{state.issue}\n
+=========================
+</ISSUE DESCRIPTION>
+=========================
+"""
+
+
+def _get_logs(state: api.State):
+    if not state.logs:
+        return ""
+    return f"""\n\n
+=========================
+<LOGS>
+=========================
+\n{state.logs}\n
+=========================
+</LOGS>
+=========================
+"""
+
 
 class Observer(abc.ABC):
     """
@@ -10,11 +38,18 @@ class Observer(abc.ABC):
     """
 
     @abc.abstractmethod
-    def __call__(self, state):
+    def _call_safe(self, state):
         """
         Turn a state into an observation.
         """
         pass
+
+    def __call__(self, state):
+        if isinstance(state, list):
+            if len(state) == 0:
+                raise ValueError("Population is empty. Cannot observe.")
+            return self._call_safe(state[0])
+        return self._call_safe(state)
 
 
 class ManualObserver(Observer):
@@ -55,10 +90,8 @@ class ManualObserver(Observer):
             file_strs.append(f"{fps}{' ' * indent}{line_number}: {line.rstrip()}")
         return "\n".join(file_strs)
 
-    def __call__(self, relevant_files=None):
-        if relevant_files is None:
-            relevant_files = self.files
-        return self._print_files(relevant_files)
+    def _call_safe(self, state=api.State):
+        return self._print_files(self.files) + _get_issue(state) + _get_logs(state)
 
 
 class VectorStoreObserver(Observer):

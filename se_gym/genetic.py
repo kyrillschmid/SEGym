@@ -7,6 +7,7 @@ import openai
 import pydantic
 import instructor
 import random
+import logging
 
 from .sampler import get_format_instructions
 from . import config
@@ -14,6 +15,8 @@ from . import config
 __dict__ = ["Population", "LLMPopulation"]
 
 prompt = typing.Annotated[str, "Prompt to an LLM"]
+
+logger = logging.getLogger("genetic")
 
 
 class Children(pydantic.BaseModel):
@@ -92,18 +95,21 @@ class Population:
     def __init__(
         self,
         client: openai.Client,
-        initial_individual: typing.List[prompt],
+        initial_individuals: typing.List[prompt],
+        sampler,
         elite_size: int = 1,
-        mutation_probability: float = 0.2,
-        crossover_probability: float = 0.7,
+        mutation_rate: float = 0.2,
+        crossover_rate: float = 0.7,
     ):
         self.client = instructor.patch(client, mode=instructor.Mode.JSON)
-        self.individuals = initial_individual
+        self.individuals = initial_individuals
+        self.sampler = sampler
         self.elite_size = elite_size
-        self.mutation_probability = mutation_probability
-        self.crossover_probability = crossover_probability
+        self.mutation_probability = mutation_rate
+        self.crossover_probability = crossover_rate
 
-    def mutate(self, parent: prompt, fitness: float):
+    def _mutate(self, parent: prompt, fitness: float):
+        logger.debug(f"Mutating {parent} with fitness {fitness}")
         schema = get_format_instructions(Child)
         resp = self.client.chat.completions.create(
             model=config.MODEL_NAME,
@@ -116,11 +122,13 @@ class Population:
         )
         return resp
 
-    def crossover(
+    def _crossover(
         self, parent1: prompt, parent2: prompt, fitness1: float, fitness2: float
     ):
+        logger.debug(
+            f"Crossover {parent1} with fitness {fitness1} and {parent2} with fitness {fitness2}"
+        )
         schema = get_format_instructions(Children)
-
         resp = self.client.chat.completions.create(
             model=config.MODEL_NAME,
             messages=get_messages(
@@ -139,10 +147,13 @@ class Population:
         )
         return resp
 
-    def selection(
+    def _selection(
         self,
         fitnesses: typing.List[float],
     ):
+        logger.debug(
+            f"Selecting the best individuals from {self.individuals} with fitnesses {fitnesses}"
+        )
         sorted_population = sorted(
             zip(self.individuals, fitnesses), key=lambda x: x[1], reverse=True
         )  # Select the best performing individuals
@@ -150,12 +161,14 @@ class Population:
         mutated = []  # run mutation on mutation_probability
         for ind, fit in sorted_population:
             if ind not in elite and random.random() < self.mutation_probability:
-                mutated.append(self.mutate(ind, fit))
+                mutated.append(self._mutate(ind, fit))
         crossed = []  # run crossover on crossover_probability
         for i in range(0, len(sorted_population), 2):
-            if random.random() < self.crossover_probability:
+            if random.random() < self.crossover_probability and i + 1 < len(
+                sorted_population
+            ):
                 crossed.append(
-                    self.crossover(
+                    self._crossover(
                         sorted_population[i][0],
                         sorted_population[i + 1][0],
                         sorted_population[i][1],
@@ -172,6 +185,24 @@ class Population:
         while len(new_population) < len(self.individuals):
             new_population.append(random.choice(self.individuals))
         self.individuals = new_population  # update the population
+
+    def evolve(self, fitnesses):
+        """
+        Update the population based on the fitness scores.
+        """
+        self._selection(fitnesses)
+
+    def sample(self, observation):
+        """
+        Sample actions from all the individuals.
+        """
+        actions = []
+        for ind in self.individuals:
+            try:
+                actions.append(self.sampler(system_prompt=ind, context=observation))
+            except Exception as e:
+                logger.warning(f"Failed to sample {ind}: {e}")
+        return actions
 
 
 class LLMPopulation:
