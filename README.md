@@ -9,6 +9,14 @@
 - [ ] Integrate into W&B for logging
 - [ ] Automatically read `devcontainer.json`, `.github/workflows`, ... to determine test commands and environment
 - [ ] Improve DX by allow guessing of oracle observer files
+- [ ] Implement all remaining stubs
+    - [ ] `se_gym.observations.VectorStoreObserver`
+    - [ ] `se_gym.observations.TreeSitterObeserver`
+    - [ ] `se_gym.observations.CodeMapObserver`
+    - [ ] `se_gym.fitness.execution_speed`
+    - [ ] `se_gym.fitness.number_retries`
+    - [ ] `se_gym.genetic.LLMPopulation`
+
 
 
 SEGym allows you to simulate patches for Python repos in isolated environments.
