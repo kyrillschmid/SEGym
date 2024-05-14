@@ -106,6 +106,11 @@ class Sampler:
             @pydantic.field_validator("patch_file")
             @classmethod
             def ensure_valid_patch(cls, patch_str: str) -> str:
+                patch_str = (
+                    patch_str.replace("\r\n", "\n")
+                    .replace("&#34", "'")
+                    .replace(r"\\n", "\n")
+                )
                 if not patch_str.startswith("diff --git a/"):
                     logger.debug(f"Invalid patch file {patch_str}")
                     raise ValueError("Patch file must start with 'diff --git a/'")
@@ -172,14 +177,12 @@ class Sampler:
             return resp.patch_file
         except instructor.retry.InstructorRetryException as e:
             logger.info(
-                f"Failed to get a valid response after {config.MAX_RETRIES} attempts, last error:",
-                e,
+                f"Failed to get a valid response after {config.MAX_RETRIES} attempts, last error: {e}"
             )
             raise SamplerInvalidPatchException(e)
         except openai.APITimeoutError as e:
             logger.info(
                 f"API call timed out after {config.TIMEOUT_SECONDS} seconds \
-                        (took {time.time() - start_time}), last error:",
-                e,
+                        (took {time.time() - start_time}), last error: {e}"
             )
             raise SamplerTimeoutException(e)
