@@ -100,7 +100,7 @@ class VectorStoreObserver(Observer):
     """
 
 
-class TreeSitterObeserver(Observer):
+class TreeSitterObserver(Observer):
     """
     Use TreeSitter to parse the code and return the relevant files.
     """
