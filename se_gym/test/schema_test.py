@@ -9,15 +9,15 @@ def test_changepatch():
     cpo = schema(
         filename="src/python_env/__main__.py",
         old_code="""
-    def main():
-        print("hello world")
-        return 2
-    """,
+def main():
+    print("hello world")
+    return 2
+""",
         new_code="""
-    def main():
-        print("hello new world")
-        return 3
-    """,
+def main():
+    print("hello new world")
+    return 3
+""",
     )
 
     assert (

@@ -11,6 +11,7 @@ logger = logging.getLogger("output_schema")
 class OutputSchema(pydantic.BaseModel, abc.ABC):
     code_base_root: typing.ClassVar[str] = None
     prompt: typing.ClassVar[str] = ""
+    patch_file: typing.Optional[str] = ""
 
     @classmethod
     def get_prompt(cls) -> str:

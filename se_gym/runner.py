@@ -147,12 +147,14 @@ def generate_patch(
     # find the file to change
     file_path = os.path.join(code_base_root, filename)
     if not os.path.exists(file_path):
+        logger.info(f"File {file_path} not found")
         raise ValueError(f"File {file_path} not found")
     # find the old code in the file
     with open(file_path, "r") as file:
         file_content = file.read()
     if old_code not in file_content:
-        raise ValueError("Old code not found in the file")
+        logger.info(f"Old code not found in the file {file_path}")
+        raise ValueError(f"Old code not found in the {file_path}")
     # replace the old code with the new code
     new_file_content = file_content.replace(old_code, new_code)
     with open(file_path, "w") as file:
