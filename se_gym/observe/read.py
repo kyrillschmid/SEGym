@@ -62,7 +62,7 @@ class RawReader(Reader):
         documents = []
         for f in glob.glob(self.path, recursive=True):
             with open(f, "r") as file:
-                documents.append(Document(f, file.read()))
+                documents.append(Document(f.replace(self.root_dir, ""), file.read()))
         return documents
 
 
@@ -72,9 +72,10 @@ class OracleReader(Reader):
     This reader works with select.FullSelector, as it already contains the relevant files.
     """
 
-    def __init__(self, files):
+    def __init__(self, root_dir: str, files: typing.List[str]):
         super().__init__()
         self.files = files
+        self.root_dir = root_dir
 
     def _populate(self):
         files_existing = []
@@ -86,8 +87,10 @@ class OracleReader(Reader):
         self.files = files_existing
         documents = []
         for file in files_existing:
-            with open(file, "r") as file:
-                documents.append(Document(file, file.read()))
+            with open(file, "r") as openfile:
+                documents.append(
+                    Document(file.replace(self.root_dir, ""), openfile.read())
+                )
         return documents
 
 

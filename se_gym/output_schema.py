@@ -68,7 +68,7 @@ Embed good patch files in a JSON object with the key "patch_file".\n
     @classmethod
     def ensure_valid_patch(cls, patch_str: str) -> str:
         if cls.code_base_root is None:
-            logger.debug("No code base root provided, skipping patch validation")
+            logger.warn("No code base root provided, skipping patch validation")
             return patch_str
         patch_str = (
             patch_str.replace("\r\n", "\n").replace("&#34", "'").replace(r"\\n", "\n")
@@ -105,6 +105,9 @@ The output should be formatted as a JSON instance that conforms to the JSON sche
 JSON_FORMAT_STRING
 \n
 
+Make sure you use the proper filename. Do not filenames like `/home/user/scratch/`, but always use the exact filename that you see in the prompt. Do not modify the filename. 
+The `/scratch` directory does not exist, use the known directories and files.
+
 EXAMPLE: If you want to replace the code in the file `./src/main.py` from `Hello, World!` to `Hello, new World!`, the JSON object should look like this:
 
 {
@@ -118,17 +121,14 @@ Only include one change in your response. If you need to make multiple changes, 
 
 """
 
-    @pydantic.field_validator("new_code")
-    @classmethod
-    def ensure_valid_patch(cls, new_code: str) -> str:
-        if cls.code_base_root is None:
-            logger.debug("No code base root provided, skipping patch validation")
-            return new_code
-        # TODO
-        return new_code
-
     @pydantic.root_validator(pre=True)
     def generate_patch(cls, v):
+        # remove trailing whitespace and trailing `./` and `/`
+        v["filename"] = v["filename"].strip()
+        if v["filename"].startswith("./"):
+            v["filename"] = v["filename"][2:]
+        if v["filename"].startswith("/"):
+            v["filename"] = v["filename"][1:]
         if cls.code_base_root is None:
             logger.error("No code base root provided, cannot generate patch")
             raise ValueError("No code base root provided, cannot generate patch")
@@ -140,4 +140,5 @@ Only include one change in your response. If you need to make multiple changes, 
         )
         cls.patch_file = patch_str
         v["patch_file"] = patch_str
+        logger.info(f"Patch generated successfully: {cls.patch_file}")
         return v

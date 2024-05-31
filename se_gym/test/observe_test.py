@@ -27,10 +27,11 @@ def test_observer1():
     readers = [
         se_gym.observe.read.RawReader(root_dir="./temp/einops"),
         se_gym.observe.read.OracleReader(
+            root_dir="./temp/einops",
             files=[
                 "./temp/einops/einops/__init__.py",
                 "./temp/einops/einops/layers/_einmix.py",
-            ]
+            ],
         ),
     ]
 

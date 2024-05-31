@@ -34,7 +34,7 @@ class Sampler:
         self,
         llm_client: openai.Client,
         code_base_root: str = None,
-        output_class: output_schema.OutputSchema = output_schema.OutputSchema,
+        output_class: output_schema.OutputSchema = output_schema.ChangePatchOutput,
     ):
         """
         Create a new Sampler for patch generation.
@@ -81,7 +81,7 @@ class Sampler:
         ]
         start_time = time.time()
         logger.debug(
-            f"Calling LLM with system prompt: {system_prompt_instruct} and context: {context}"
+            f"Calling LLM with message {messages} and model {config.MODEL_NAME}"
         )
         try:
             resp = self.llm_client.chat.completions.create(

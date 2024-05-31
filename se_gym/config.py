@@ -1,5 +1,5 @@
 MAX_RETRIES = 5
-TIMEOUT_SECONDS = 30
+TIMEOUT_SECONDS = 60
 DEFAULT_SAVE_PATH = "./temp"
 DOCKER_TAG = "pytest-env"
 GIT_APPLY_PATCH = "git apply --ignore-space-change --ignore-whitespace --verbose --recount --inaccurate-eof ./file.patch"
