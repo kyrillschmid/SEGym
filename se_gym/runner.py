@@ -64,11 +64,11 @@ class Container:
     """
 
     def __init__(self, mount_dir: str):
-        self.mount_dir = mount_dir
+        self.mount_dir = os.path.abspath(mount_dir)
         self.container = DockerConnector.get_instance().client.containers.run(
             image=config.DOCKER_TAG,
             detach=True,
-            volumes={mount_dir: {"bind": "/repo", "mode": "rw"}},
+            volumes={self.mount_dir: {"bind": "/repo", "mode": "rw"}},
             working_dir="/repo",
             tty=True,
             name=f"se_gym_container_{time.time()}",
