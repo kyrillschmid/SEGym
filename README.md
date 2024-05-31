@@ -1,27 +1,6 @@
 # SEGym
-
-# THIS IS A WORK IN PROGRESS FORK OF THE ORIGINAL REPO
-## TODO
-- [ ] Restore script entry point
-- [ ] Log incorrectly generated patches instead of just fixing them 
-- [ ] Make entire docker container generation async to always have a container ready
-- [x] Integrate https://huggingface.co/datasets/princeton-nlp/SWE-bench_Lite
-- [ ] Integrate into W&B for logging
-- [ ] Automatically read `devcontainer.json`, `.github/workflows`, ... to determine test commands and environment
-- [ ] Improve DX by allow guessing of oracle observer files
-- [ ] Implement all remaining stubs
-    - [ ] `se_gym.observations.VectorStoreObserver`
-    - [ ] `se_gym.observations.TreeSitterObeserver`
-    - [ ] `se_gym.observations.CodeMapObserver`
-    - [ ] `se_gym.fitness.execution_speed`
-    - [ ] `se_gym.fitness.number_retries`
-    - [ ] `se_gym.genetic.LLMPopulation`
-
-
-
 SEGym allows you to simulate patches for Python repos in isolated environments.
 You can use such an environment to let a solver (e.g. LLM) search for a patch for a given issue until the issue is resolved.
-
 
 
 ## Prerequisites
@@ -42,7 +21,8 @@ Supply your own `openai.Client` compatible API.
 FOR LMU: use `openai_lmu.get_lmu_openai_client()` to get a ready-to-use client.
 
 ### Running the gym
-Drawing strong similarities to the OpenAI gym, the `SEGym` class is the main
+Drawing strong similarities to the OpenAI gym, the `SEGym` class is the main entry point for the library. It allows you to create a new environment, reset it, and step through it.
+
 ```python
 import se_gym
 env = se_gym.api.make("dummy")
@@ -64,3 +44,13 @@ No LLM generated content will modify local files, instead `env` starts up a dock
 
 #### Docker
 If you have a Docker related issues with the mounted volume on Mac, the following command might fix it: `sudo ln -s "$HOME/.docker/run/docker.sock" /var/run/docker.sock`
+
+## TODO
+- [ ] Log incorrectly generated patches instead of just fixing them 
+- [ ] Make entire docker container generation async to always have a container ready
+- [x] Integrate https://huggingface.co/datasets/princeton-nlp/SWE-bench_Lite
+- [ ] Integrate into W&B for logging
+- [ ] Automatically read `devcontainer.json`, `.github/workflows`, ... to determine test commands and environment
+- [ ] Improve DX by allow guessing of oracle observer files
+- [ ] Implement all remaining stubs
+- [ ] `api.State` should contain a git hash of the directory, allowing to clear observer caches if files are modified

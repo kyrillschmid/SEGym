@@ -64,11 +64,11 @@ class Container:
     """
 
     def __init__(self, mount_dir: str):
-        self.mount_dir = mount_dir
+        self.mount_dir = os.path.abspath(mount_dir)
         self.container = DockerConnector.get_instance().client.containers.run(
             image=config.DOCKER_TAG,
             detach=True,
-            volumes={mount_dir: {"bind": "/repo", "mode": "rw"}},
+            volumes={self.mount_dir: {"bind": "/repo", "mode": "rw"}},
             working_dir="/repo",
             tty=True,
             name=f"se_gym_container_{time.time()}",
@@ -134,6 +134,36 @@ def check_patch(code_base_root: str, patch: str):
             f"Failed to apply patch STDOUT:{res.stdout} STDERR:{res.stderr} PATCH:{patch}"
         )
         raise MalformedPatchException("Failed to apply patch", res.stdout)
+
+
+def generate_patch(
+    code_base_root: str, filename: str, old_code: str, new_code: str
+) -> str:
+    """
+    Generate a patch file from the old and new code.
+    """
+    # discard current git changes in the codebase
+    subprocess.run(config.GIT_DISCARD_CHANGES, cwd=code_base_root)
+    # find the file to change
+    file_path = os.path.join(code_base_root, filename)
+    if not os.path.exists(file_path):
+        logger.info(f"File {file_path} not found")
+        raise ValueError(f"File {file_path} not found")
+    # find the old code in the file
+    with open(file_path, "r") as file:
+        file_content = file.read()
+    if old_code not in file_content:
+        logger.info(f"Old code not found in the file {file_path}")
+        raise ValueError(f"Old code not found in the {file_path}")
+    # replace the old code with the new code
+    new_file_content = file_content.replace(old_code, new_code)
+    with open(file_path, "w") as file:
+        file.write(new_file_content)
+    # create a patch file running git diff
+    patch = subprocess.run(config.GIT_DIFF, cwd=code_base_root, stdout=subprocess.PIPE)
+    # discard the changes
+    subprocess.run(config.GIT_DISCARD_CHANGES, cwd=code_base_root)
+    return patch.stdout.decode("utf-8")
 
 
 def apply_patch(code_base_root: str, patch: str):

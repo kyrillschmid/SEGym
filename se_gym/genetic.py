@@ -8,8 +8,6 @@ import pydantic
 import instructor
 import random
 import logging
-
-from .sampler import get_format_instructions
 from . import config
 
 __dict__ = ["Population", "LLMPopulation"]
@@ -44,8 +42,7 @@ To increase the fitness of the child prompts, extract the best parts of the two 
 You know that the child prompts should be similar to the parent prompts, but not identical. 
 You also know that the child prompts should be different from each other.
 You know the fitness scores of the parent prompts and how they are calculated.
-You alway output in JSON format. 
-Use the following schema: {schema} 
+You alway output in JSON format.
 """
 
 CROSSOVER_USER_PROMPT = """
@@ -72,7 +69,6 @@ To increase the fitness of the child prompt, make major changes to the parent pr
 You know that the child prompt should be similar to the parent prompt, but not identical.
 You know the fitness score of the parent prompt and how it is calculated.
 You always output in JSON format.
-Use the following schema: {schema}
 """
 
 MUTATION_USER_PROMPT = """
@@ -110,11 +106,10 @@ class Population:
 
     def _mutate(self, parent: prompt, fitness: float):
         logger.debug(f"Mutating {parent} with fitness {fitness}")
-        schema = get_format_instructions(Child)
         resp = self.client.chat.completions.create(
             model=config.MODEL_NAME,
             messages=get_messages(
-                MUTATION_SYSTEM_PROMPT.format(fitness=fitness, schema=schema),
+                MUTATION_SYSTEM_PROMPT.format(fitness=fitness),
                 MUTATION_USER_PROMPT.format(fitness=fitness, parent=parent),
             ),
             response_model=Child,
@@ -128,13 +123,10 @@ class Population:
         logger.debug(
             f"Crossover {parent1} with fitness {fitness1} and {parent2} with fitness {fitness2}"
         )
-        schema = get_format_instructions(Children)
         resp = self.client.chat.completions.create(
             model=config.MODEL_NAME,
             messages=get_messages(
-                CROSSOVER_SYSTEM_PROMPT.format(
-                    fitness1=fitness1, fitness2=fitness2, schema=schema
-                ),
+                CROSSOVER_SYSTEM_PROMPT.format(fitness1=fitness1, fitness2=fitness2),
                 CROSSOVER_USER_PROMPT.format(
                     fitness1=fitness1,
                     fitness2=fitness2,
