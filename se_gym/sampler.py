@@ -9,86 +9,33 @@ https://github.com/langchain-ai/langchain/blob/70a79f45d78f4261418f9bf3a32a829bb
 
 import instructor
 import instructor.retry
-import pydantic
-import json
 import openai
 import logging
 import tenacity
 import time
 
+from . import output_schema
 from . import config
-from . import runner
+
 
 logger = logging.getLogger("caller")
 
 
-def get_format_instructions(pydanticClass) -> str:
-    """
-    Turns a pydantic class into a JSON schema and returns the format instructions for it.
-    """
-    schema = {k: v for k, v in pydanticClass.model_json_schema().items()}  # copy
-    reduced_schema = schema
-    if "title" in reduced_schema:
-        del reduced_schema["title"]
-    if "type" in reduced_schema:
-        del reduced_schema["type"]
-    schema_str = json.dumps(reduced_schema)
-    schema_prompt = (
-        """
-The output should be formatted as a JSON instance that conforms to the JSON schema below.\n\n
-As an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}
-the object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.\n
-Here is the output schema: \n\n
-```\n"""
-        + schema_str
-        + """\n```
-ONLY REPLY USING JSON FORMAT. DO NOT INCLUDE ANYTHING ELSE IN YOUR RESPONSE.
-
-EXAMPLE:
-Good patch files look like this: 
-```
-diff --git a/src/python_env/__main__.py b/src/python_env/__main__.py
-index 2b39a9f..f1e21b3 100644
---- a/src/python_env/__main__.py
-+++ b/src/python_env/__main__.py
-@@ -2,8 +2,10 @@
-
- def main():
-     print("hello world")
--    return 2
-+    # return 2
-+    return 3
-
-
- if __name__ == "__main__":
-+    print("Calling main function...")
-     main()
-```
-It modifies an existing file. The added lines start with a '+', the removed lines start with a '-'. In the header, starting with 'diff --git a/', the file paths are specified. In the section with @@ the line numbers are specified. \n
-Embed good patch files in a JSON object with the key "patch_file".\n
-"""
-    )
-    return schema_prompt
-
-
 class SamplerInvalidPatchException(Exception):
-    """
-    Exception raised when the model fails to generate a valid response after MAX_RETRIES attempts
-    """
-
-    pass
+    """Exception raised when the model fails to generate a valid response after MAX_RETRIES attempts"""
 
 
 class SamplerTimeoutException(Exception):
-    """
-    Exception raised when the API call times out after TIMEOUT_SECONDS seconds
-    """
-
-    pass
+    """Exception raised when the API call times out after TIMEOUT_SECONDS seconds"""
 
 
 class Sampler:
-    def __init__(self, llm_client: openai.Client, code_base_root: str = None):
+    def __init__(
+        self,
+        llm_client: openai.Client,
+        code_base_root: str = None,
+        output_class: output_schema.OutputSchema = output_schema.OutputSchema,
+    ):
         """
         Create a new Sampler for patch generation.
 
@@ -98,35 +45,8 @@ class Sampler:
         self.llm_client = instructor.patch(llm_client, mode=instructor.Mode.JSON)
         self.create_patch = self.__call__
 
-        class Patch(pydantic.BaseModel):
-            patch_file: str = pydantic.Field(
-                description="Contents of a .patch file to change the codebase. Starts with 'diff --git a/'"
-            )
-
-            @pydantic.field_validator("patch_file")
-            @classmethod
-            def ensure_valid_patch(cls, patch_str: str) -> str:
-                patch_str = (
-                    patch_str.replace("\r\n", "\n")
-                    .replace("&#34", "'")
-                    .replace(r"\\n", "\n")
-                )
-                if not patch_str.startswith("diff --git a/"):
-                    logger.debug(f"Invalid patch file {patch_str}")
-                    raise ValueError("Patch file must start with 'diff --git a/'")
-                if code_base_root is not None:
-                    try:
-                        runner.check_patch(code_base_root, patch_str)
-                    except Exception as e:
-                        logger.debug(f"Invalid patch file {patch_str} error {e}")
-                        raise e
-                else:
-                    logger.debug(
-                        "No code base root provided, skipping patch validation"
-                    )
-                return patch_str
-
-        self.PATCH_CLASS = Patch
+        self.output_class = output_class
+        self.output_class.code_base_root = code_base_root
 
     def __call__(self, system_prompt: str, context: str) -> str:
         """
@@ -154,9 +74,7 @@ class Sampler:
         ```
         to log the invalid responses
         """
-        system_prompt_instruct = system_prompt + get_format_instructions(
-            self.PATCH_CLASS
-        )
+        system_prompt_instruct = system_prompt + self.output_class.get_prompt()
         messages = [
             {"role": "system", "content": system_prompt_instruct},
             {"role": "user", "content": context},
@@ -169,7 +87,7 @@ class Sampler:
             resp = self.llm_client.chat.completions.create(
                 model=config.MODEL_NAME,
                 messages=messages,
-                response_model=self.PATCH_CLASS,
+                response_model=self.output_class,
                 max_retries=config.MAX_RETRIES,
                 timeout=config.TIMEOUT_SECONDS,
             )

@@ -136,6 +136,34 @@ def check_patch(code_base_root: str, patch: str):
         raise MalformedPatchException("Failed to apply patch", res.stdout)
 
 
+def generate_patch(
+    code_base_root: str, filename: str, old_code: str, new_code: str
+) -> str:
+    """
+    Generate a patch file from the old and new code.
+    """
+    # discard current git changes in the codebase
+    subprocess.run(config.GIT_DISCARD_CHANGES, cwd=code_base_root)
+    # find the file to change
+    file_path = os.path.join(code_base_root, filename)
+    if not os.path.exists(file_path):
+        raise ValueError(f"File {file_path} not found")
+    # find the old code in the file
+    with open(file_path, "r") as file:
+        file_content = file.read()
+    if old_code not in file_content:
+        raise ValueError("Old code not found in the file")
+    # replace the old code with the new code
+    new_file_content = file_content.replace(old_code, new_code)
+    with open(file_path, "w") as file:
+        file.write(new_file_content)
+    # create a patch file running git diff
+    patch = subprocess.run(config.GIT_DIFF, cwd=code_base_root, stdout=subprocess.PIPE)
+    # discard the changes
+    subprocess.run(config.GIT_DISCARD_CHANGES, cwd=code_base_root)
+    return patch.stdout.decode("utf-8")
+
+
 def apply_patch(code_base_root: str, patch: str):
     """
     Apply a patch to a codebase.
