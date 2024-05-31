@@ -10,6 +10,7 @@ temp/
 *.pickle
 old_*
 temp*file.patch
+*.cache.pkl
 
 .aider*
 !.aider.conf.yml

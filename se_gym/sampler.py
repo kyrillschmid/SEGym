@@ -7,6 +7,7 @@ https://github.com/langchain-ai/langchain/blob/70a79f45d78f4261418f9bf3a32a829bb
 
 """
 
+import typing
 import instructor
 import instructor.retry
 import openai
@@ -16,6 +17,7 @@ import time
 
 from . import output_schema
 from . import config
+from . import utils
 
 
 logger = logging.getLogger("caller")
@@ -27,6 +29,25 @@ class SamplerInvalidPatchException(Exception):
 
 class SamplerTimeoutException(Exception):
     """Exception raised when the API call times out after TIMEOUT_SECONDS seconds"""
+
+
+@utils.cached(ignore=["client", "response_model"])
+def cached_completion(
+    client,
+    messages: typing.List[typing.Dict[str, str]],
+    response_model,
+    field_name,
+    **kwargs,
+) -> str:
+    resp = client.chat.completions.create(
+        messages=messages,
+        response_model=response_model,
+        model=config.MODEL_NAME,
+        max_retries=config.MAX_RETRIES,
+        timeout=config.TIMEOUT_SECONDS,
+        **kwargs,
+    )
+    return getattr(resp, field_name)
 
 
 class Sampler:
@@ -84,15 +105,14 @@ class Sampler:
             f"Calling LLM with message {messages} and model {config.MODEL_NAME}"
         )
         try:
-            resp = self.llm_client.chat.completions.create(
-                model=config.MODEL_NAME,
+            resp = cached_completion(
+                client=self.llm_client,
                 messages=messages,
                 response_model=self.output_class,
-                max_retries=config.MAX_RETRIES,
-                timeout=config.TIMEOUT_SECONDS,
+                field_name="patch_file",
             )
             logger.debug(f"API call took {time.time() - start_time} seconds")
-            return resp.patch_file
+            return resp
         except instructor.retry.InstructorRetryException as e:
             logger.info(
                 f"Failed to get a valid response after {config.MAX_RETRIES} attempts, last error: {e}"
