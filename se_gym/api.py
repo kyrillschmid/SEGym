@@ -54,14 +54,22 @@ class State:
     path: typing.Annotated[str, "Path to the repository"]
     issue: typing.Annotated[str, "Issue to be fixed"]
     logs: typing.Annotated[typing.Union[str, None], "Logs of previous steps"] = None
+    fail_to_pass: typing.Annotated[typing.List[str], "Tests that currently fails"] = (
+        None
+    )
 
 
 class Environment:
     def __init__(self, dataset: datasets.Dataset):
+        """
+        Initialize the environment with a dataset. If the dataset is not available, it will be downloaded lazily.
+        """
         self.dataset = dataset
         self.current_index = None
         self.current_path = None
         self.current_issue = None
+        self.test_patch = None
+        self.fail_to_pass = None
 
     def reset(self):
         """
@@ -74,9 +82,15 @@ class Environment:
             self.dataset["environment_setup_commit"][self.current_index],
         )
         self.current_issue = self.dataset["problem_statement"][self.current_index]
-        return State(path=self.current_path, issue=self.current_issue)
-
-    def _check_valid_patch(self, patch: str): ...
+        self.test_patch = self.dataset["test_patch"][self.current_index]
+        self.fail_to_pass = self.parse_fail_to_pass(
+            self.dataset["FAIL_TO_PASS"][self.current_index], self.current_path
+        )
+        return State(
+            path=self.current_path,
+            issue=self.current_issue,
+            fail_to_pass=self.fail_to_pass,
+        )
 
     def step(self, action: typing.Union[str, typing.List[str]]):
         """
@@ -88,4 +102,31 @@ class Environment:
             code_base_root=self.current_path, patch=action
         )
         log = runner.parse_pytest_xml(tree)
-        return State(path=self.current_path, issue=self.current_issue, logs=log)
+        return State(
+            path=self.current_path,
+            issue=self.current_issue,
+            logs=log,
+            fail_to_pass=self.fail_to_pass,
+        )
+
+    @staticmethod
+    def parse_fail_to_pass(fail_to_pass: str, current_path: str) -> typing.List[str]:
+        """
+        Parse the fail to pass string and return the list of tests that need to be fixed.
+        E.g. "['test_boolean_expression_combined (expressions.tests.BasicExpressionsTests)', 'test_boolean_expression_combined_with_empty_Q (expressions.tests.BasicExpressionsTests)']"
+        and current_path = "./temp/djangodjango" becomes
+        ['temp/djangodjango/tests/expressions/tests.py']
+        """
+        tests = set()
+        for test in eval(fail_to_pass):
+            tests.add(
+                "/".join(
+                    test.split(" ")[-1]
+                    .replace("(", "")
+                    .replace(")", "")
+                    .replace(".", "/")
+                    .split("/")[:-1]
+                )
+                + ".py"
+            )
+        return [utils.find_file(root_dir=current_path, filename=test) for test in tests]

@@ -98,7 +98,8 @@ class ChangePatchOutput(OutputSchema):
         description="The new code to replace the original code."
     )
     # do not initialize this field, it will be generated
-    patch_file: typing.Optional[str] = pydantic.Field(no_init=True)
+    # patch_file: typing.Optional[str] = pydantic.Field(no_init=True)
+    path_file: typing.ClassVar[str] = ""
 
     prompt: typing.ClassVar[str] = """
 The output should be formatted as a JSON instance that conforms to the JSON schema below.\n\n
@@ -123,7 +124,12 @@ Only include one change in your response. If you need to make multiple changes, 
 
     @pydantic.root_validator(pre=True)
     def generate_patch(cls, v):
+        logger.info(f"Validating {v}")
         # remove trailing whitespace and trailing `./` and `/`
+        for f in "filename", "old_code", "new_code":
+            if f not in v:
+                logger.error(f"Missing field {f} in {v}")
+                raise ValueError(f"Missing field {f} in {v}")
         v["filename"] = v["filename"].strip()
         if v["filename"].startswith("./"):
             v["filename"] = v["filename"][2:]
