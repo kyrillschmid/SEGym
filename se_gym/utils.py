@@ -2,32 +2,52 @@ from functools import wraps
 import pickle
 import logging
 from inspect import signature
+import glob
+import os
+import openai
 
 logger = logging.getLogger("utils")
 
 
-def slugify(value, allow_unicode=False):
+def slugify(value):
     """
+    Makes any object a url and filename friendly slug.
     Taken from Django's https://github.com/django/django/blob/main/django/utils/text.py
-    Convert to ASCII if 'allow_unicode' is False. Convert spaces or repeated
-    dashes to single dashes. Remove characters that aren't alphanumerics,
-    underscores, or hyphens. Convert to lowercase. Also strip leading and
-    trailing whitespace, dashes, and underscores.
     """
     import unicodedata
     import re
 
     value = str(value)
-    if allow_unicode:
-        value = unicodedata.normalize("NFKC", value)
-    else:
-        value = (
-            unicodedata.normalize("NFKD", value)
-            .encode("ascii", "ignore")
-            .decode("ascii")
-        )
+    value = (
+        unicodedata.normalize("NFKD", value)
+        .encode("ascii", "ignore")
+        .decode("ascii")
+    )
     value = re.sub(r"[^\w\s-]", "", value.lower())
     return re.sub(r"[-\s]+", "-", value).strip("-_")
+
+
+def find_file(root_dir: str, filename: str) -> str:
+    """
+    Find a file in a directory.
+    """
+    root_abs = os.path.abspath(root_dir)
+    for f in glob.glob(f"{root_dir}/**/{filename}", recursive=True):
+        f_abs = os.path.abspath(f)
+        rel_path = os.path.relpath(f_abs, root_abs).replace("\\", "/")
+        return rel_path
+    raise FileNotFoundError(f"File {filename} not found in {root_dir}")
+
+
+def check_client(client):
+    try:
+        client.models.list()
+    except openai._exceptions.APIStatusError:
+        # model not found -> probably running on ollama
+        pass
+    except openai._exceptions.APITimeoutError:
+        # timeout -> wrong ip
+        raise ValueError("API Timeout. Check if you are connected to the VPN.")
 
 
 def cached(ignore=None):
@@ -44,7 +64,7 @@ def cached(ignore=None):
             )
             return slugify(cache_key)
 
-        cache_file = f"{func.__name__}.cache.pkl"
+        cache_file = f".cache.{func.__name__}.pkl"
         try:
             with open(cache_file, "rb") as f:
                 func.cache = pickle.load(f)

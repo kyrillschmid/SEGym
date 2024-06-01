@@ -17,6 +17,7 @@ import regex
 from fuzzywuzzy import fuzz
 
 from . import config
+from . import utils
 
 logger = logging.getLogger("dockerconnector")
 
@@ -78,7 +79,11 @@ class Container:
 
     def run_command(self, command: str):
         logger.debug(f"Running command {command}")
-        return self.container.exec_run(cmd=command, stdout=True, stderr=True)
+        res = self.container.exec_run(cmd=command, stdout=True, stderr=True)
+        logger.debug(
+            f"Command {command} finished with exit code {res.exit_code}, output {res.output}"
+        )
+        return res
 
     def destroy(self):
         self.container.stop()
@@ -100,7 +105,9 @@ class CodeExecutor:
         shutil.copytree(src=code_base_root, dst=f"{self.temp_dir}/", dirs_exist_ok=True)
         with open(f"{self.temp_dir}/file.patch", "w") as file:
             file.write(patch)
+        logger.debug("Starting container")
         self.container = Container(mount_dir=self.temp_dir)  # start a container
+        logger.debug(f"Container started with mount dir {self.temp_dir}")
 
     def destroy(self):
         """
@@ -197,6 +204,7 @@ def apply_patch(code_base_root: str, patch: str):
     logger.info("Patch applied successfully")
 
 
+@utils.cached()
 def apply_patch_and_test(
     code_base_root: str, patch: str, command: str = "pytest --junitxml=testresults.xml"
 ) -> ET.Element:
