@@ -3,49 +3,77 @@ import datasets
 import os
 import random
 import typing
+import subprocess
+import logging
 
-from .utils import slugify
+from . import utils
 from . import config
 from . import runner
 
+random.seed(15)
+logger = logging.getLogger("api")
 __dict__ = ["make"]
 
 if not os.path.exists(config.DEFAULT_SAVE_PATH):
     os.makedirs(config.DEFAULT_SAVE_PATH)
 
 
-def make(dataset: str = "princeton-nlp/SWE-bench_Lite/dev"):
+def make(dataset: str = "princeton-nlp/SWE-bench_Lite_oracle/dev"):
     return Environment(get_ds(dataset))
 
-
 __dummy_repo = dict(
-    repo=["kyrillschmid/PythonEnv"],
+    repo=["gstenzel/ignore-this-dummy"],
     instance_id=["1"],
-    base_commit=["aa3a2fd511f550ae77c03c83b545af02ece731fe"],
+    base_commit=["dd707f99dd21d68131c1b97de5c8820f3590cb97"],
     problem_statement=[
-        "Write a function that takes a string as input and returns the string reversed."
+        "The magic.main.invert_string function should reverse any string passed to it. But it doesn't. Please fix it."
     ],
-    environment_setup_commit=["aa3a2fd511f550ae77c03c83b545af02ece731fe"],
+    environment_setup_commit=["dd707f99dd21d68131c1b97de5c8820f3590cb97"],
+    test_patch=["[]"],
+    FAIL_TO_PASS=[
+        "['test_string_inversion_1 (test.test_main.test_string_inversion_1)', 'test_string_inversion_2 (test.test_main.test_string_inversion_1)']"
+    ],
 )
 
 
-def get_ds(dataset: str = "princeton-nlp/SWE-bench_Lite/dev"):
-    if dataset == "princeton-nlp/SWE-bench_Lite/dev":
-        return datasets.load_dataset("princeton-nlp/SWE-bench_Lite", split="dev")
-    elif dataset == "princeton-nlp/SWE-bench_Lite/test":
-        return datasets.load_dataset("princeton-nlp/SWE-bench_Lite", split="test")
-    elif dataset == "dummy":
+def get_ds(dataset):
+    if dataset == "dummy":
         return __dummy_repo
     else:
-        raise ValueError("Invalid dataset name")
+        split = None
+        if dataset.endswith("/dev") or dataset.endswith("/test"):
+            split = dataset.split("/")[-1]
+            dataset = "/".join(dataset.split("/")[:-1])
+        return datasets.load_dataset(dataset, split=split)
 
 
-def setup_repo(repo: str, environment_setup_commit: str):
-    repo_slug = slugify(repo)
+def setup_repo(repo: str, environment_setup_commit: str, test_patch: str = ""):
+    logger.debug(f"Setting up repo {repo} at commit {environment_setup_commit}")
+    repo_slug = utils.slugify(repo)
+    os.makedirs(config.DEFAULT_SAVE_PATH, exist_ok=True)
     target_path = f"{config.DEFAULT_SAVE_PATH}/{repo_slug}"
     if not os.path.exists(f"{config.DEFAULT_SAVE_PATH}/{repo_slug}"):
-        os.system(f"git clone https://github.com/{repo}.git {target_path}")
-    os.system(f"cd {target_path} && git checkout {environment_setup_commit}")
+        subprocess.call(["git", "clone", f"https://github.com/{repo}.git", target_path])
+    subprocess.call(config.GIT_DISCARD_CHANGES.split(" "), cwd=target_path)
+    subprocess.call(["git", "checkout", environment_setup_commit], cwd=target_path)
+    if test_patch:
+        logger.debug("Applying test patch")
+        with open(f"{target_path}/file.patch", "w") as f:
+            f.write(test_patch)
+        proc = subprocess.Popen(
+            config.GIT_APPLY_PATCH.split(" "),
+            cwd=target_path,
+            stderr=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+        )
+        out, err = proc.communicate()
+        logger.debug(f"Applied test patch: out {out} err {err}")
+        os.unlink(f"{target_path}/file.patch")
+        subprocess.call(["git", "add", "."], cwd=target_path)
+        subprocess.call(
+            ["git", "commit", "-m", "Apply test patch"],
+            cwd=target_path,
+        )
     return target_path
 
 
@@ -80,6 +108,7 @@ class Environment:
         self.current_path = setup_repo(
             self.dataset["repo"][self.current_index],
             self.dataset["environment_setup_commit"][self.current_index],
+            self.dataset["test_patch"][self.current_index],
         )
         self.current_issue = self.dataset["problem_statement"][self.current_index]
         self.test_patch = self.dataset["test_patch"][self.current_index]
