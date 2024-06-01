@@ -18,6 +18,7 @@ import time
 from . import output_schema
 from . import config
 from . import utils
+from . import client
 
 
 logger = logging.getLogger("caller")
@@ -31,29 +32,9 @@ class SamplerTimeoutException(Exception):
     """Exception raised when the API call times out after TIMEOUT_SECONDS seconds"""
 
 
-@utils.cached(ignore=["client", "response_model"])
-def cached_completion(
-    client,
-    messages: typing.List[typing.Dict[str, str]],
-    response_model,
-    field_name,
-    **kwargs,
-) -> str:
-    resp = client.chat.completions.create(
-        messages=messages,
-        response_model=response_model,
-        model=config.MODEL_NAME,
-        max_retries=config.MAX_RETRIES,
-        timeout=config.TIMEOUT_SECONDS,
-        **kwargs,
-    )
-    return getattr(resp, field_name)
-
-
 class Sampler:
     def __init__(
         self,
-        llm_client: openai.Client,
         code_base_root: str = None,
         output_class: output_schema.OutputSchema = output_schema.ChangePatchOutput,
     ):
@@ -63,7 +44,6 @@ class Sampler:
         Args:
             llm_client: OpenAI client object. It will be patched with instructor.
         """
-        self.llm_client = instructor.patch(llm_client, mode=instructor.Mode.JSON)
         self.create_patch = self.__call__
 
         self.output_class = output_class
@@ -105,8 +85,7 @@ class Sampler:
             f"Calling LLM with message {messages} and model {config.MODEL_NAME}"
         )
         try:
-            resp = cached_completion(
-                client=self.llm_client,
+            resp = client._Client.completions_create(
                 messages=messages,
                 response_model=self.output_class,
                 field_name="patch_file",
