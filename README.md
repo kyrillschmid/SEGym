@@ -48,6 +48,7 @@ If you have a Docker related issues with the mounted volume on Mac, the followin
 ## TODO
 - [ ] Log incorrectly generated patches instead of just fixing them 
 - [ ] Make entire docker container generation async to always have a container ready
+- [ ] Instead of creating new containers for every patch, create a root container, install the repo and requirements there, and then use `docker commit root root_copy; docker run root_copy` for every patch
 - [x] Integrate https://huggingface.co/datasets/princeton-nlp/SWE-bench_Lite
 - [ ] Integrate into W&B for logging
 - [ ] Automatically read `devcontainer.json`, `.github/workflows`, ... to determine test commands and environment
