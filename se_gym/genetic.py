@@ -95,6 +95,9 @@ class Population:
         percent_mutation: float = 0.3,
         percent_crossover: float = 0.3,
     ):
+        assert (
+            percent_elite + percent_mutation + percent_crossover <= 1
+        ), "The sum of the percentages should be less than or equal to 1."
         self.individuals = initial_individuals
         self.sampler = sampler
         self.num_elite = int(percent_elite * len(self.individuals))
