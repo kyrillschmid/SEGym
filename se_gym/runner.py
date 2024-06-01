@@ -13,6 +13,8 @@ import os
 import shutil
 import subprocess
 import xml.etree.ElementTree as ET
+import regex
+from fuzzywuzzy import fuzz
 
 from . import config
 
@@ -136,27 +138,37 @@ def check_patch(code_base_root: str, patch: str):
         raise MalformedPatchException("Failed to apply patch", res.stdout)
 
 
-def generate_patch(
-    code_base_root: str, filename: str, old_code: str, new_code: str
-) -> str:
+def get_code_span(full_code: str, partial_code: str) -> str:
+    pattern = regex.compile(
+        "(" + regex.escape(partial_code) + "){i,d,e}",
+        regex.BESTMATCH | regex.IGNORECASE | regex.ENHANCEMATCH,
+    )
+    match = pattern.search(full_code)
+    if match is None:
+        raise ValueError("Old code not found in the file")
+    else:
+        ratio = fuzz.ratio(match.group(), partial_code)
+        if ratio < config.FUZZY_MATCH_THRESHOLD:
+            raise ValueError(f"Old code not found in the file, fuzzy match {ratio}")
+    return match.span()
+
+
+def generate_patch(code_base_root: str, filename: str, old_code: str, new_code: str):
     """
     Generate a patch file from the old and new code.
     """
     # discard current git changes in the codebase
     subprocess.run(config.GIT_DISCARD_CHANGES, cwd=code_base_root)
     # find the file to change
-    file_path = os.path.join(code_base_root, filename)
-    if not os.path.exists(file_path):
-        logger.info(f"File {file_path} not found")
-        raise ValueError(f"File {file_path} not found")
+    file_path = utils.find_file(code_base_root, filename)
     # find the old code in the file
     with open(file_path, "r") as file:
-        file_content = file.read()
-    if old_code not in file_content:
-        logger.info(f"Old code not found in the file {file_path}")
-        raise ValueError(f"Old code not found in the {file_path}")
+        old_file_content = file.read()
+    span = get_code_span(old_file_content, old_code)
     # replace the old code with the new code
-    new_file_content = file_content.replace(old_code, new_code)
+    new_file_content = (
+        old_file_content[: span[0]] + new_code + old_file_content[span[1] :]
+    )
     with open(file_path, "w") as file:
         file.write(new_file_content)
     # create a patch file running git diff

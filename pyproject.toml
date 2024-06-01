@@ -34,6 +34,8 @@ tree-sitter = "0.21.3"
 datasets = "^2.19.1"
 aider-chat = "0.35.0"
 rank_bm25 = "^0.2.2"
+regex = "2024.4.28"
+fuzzywuzzy = "^0.18.0"
 
 [build-system]
 requires = ["poetry-core"]
