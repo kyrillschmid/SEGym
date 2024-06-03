@@ -114,7 +114,10 @@ class CodeExecutor:
         Tear down the container and remove the temporary directory.
         """
         self.container.destroy()
-        shutil.rmtree(self.temp_dir, onexc=CodeExecutor._shutil_onexc)
+        try:
+            shutil.rmtree(self.temp_dir, onexc=CodeExecutor._shutil_onexc)
+        except Exception:
+            shutil.rmtree(self.temp_dir)
 
     @staticmethod
     def _shutil_onexc(func, path, exc_info):
@@ -137,7 +140,9 @@ def check_patch(code_base_root: str, patch: str):
     with open(rand_path, "w") as file:
         file.write(patch)
         logger.debug(f"writing patch to file {rand_path}")
-    res = subprocess.check_output(args=config.GIT_CHECK_PATCH, cwd=code_base_root)
+    res = subprocess.check_output(
+        args=config.GIT_CHECK_PATCH.split(" "), cwd=code_base_root
+    )
     if res.returncode != 0:
         logger.info(
             f"Failed to apply patch STDOUT:{res.stdout} STDERR:{res.stderr} PATCH:{patch}"
@@ -165,23 +170,27 @@ def generate_patch(code_base_root: str, filename: str, old_code: str, new_code: 
     Generate a patch file from the old and new code.
     """
     # discard current git changes in the codebase
-    subprocess.run(config.GIT_DISCARD_CHANGES, cwd=code_base_root)
+    subprocess.run(config.GIT_DISCARD_CHANGES.split(" "), cwd=code_base_root)
     # find the file to change
     file_path = utils.find_file(code_base_root, filename)
+    if file_path.startswith("."):
+        file_path = file_path[1:]
     # find the old code in the file
-    with open(file_path, "r") as file:
+    with open(code_base_root + file_path, "r") as file:
         old_file_content = file.read()
     span = get_code_span(old_file_content, old_code)
     # replace the old code with the new code
     new_file_content = (
         old_file_content[: span[0]] + new_code + old_file_content[span[1] :]
     )
-    with open(file_path, "w") as file:
+    with open(code_base_root + file_path, "w") as file:
         file.write(new_file_content)
     # create a patch file running git diff
-    patch = subprocess.run(config.GIT_DIFF, cwd=code_base_root, stdout=subprocess.PIPE)
+    patch = subprocess.run(
+        config.GIT_DIFF.split(" "), cwd=code_base_root, stdout=subprocess.PIPE
+    )
     # discard the changes
-    subprocess.run(config.GIT_DISCARD_CHANGES, cwd=code_base_root)
+    subprocess.run(config.GIT_DISCARD_CHANGES.split(" "), cwd=code_base_root)
     return patch.stdout.decode("utf-8")
 
 
@@ -194,7 +203,9 @@ def apply_patch(code_base_root: str, patch: str):
         patch (str): The patch to apply to the codebase. This file might be corrupted, in which case the function will raise an MalformedPatchException.
     """
     executor = CodeExecutor(code_base_root, patch)
-    apply_log = executor.container.run_command(config.GIT_APPLY_PATCH)  # Try to patch
+    apply_log = executor.container.run_command(
+        config.GIT_APPLY_PATCH.split(" ")
+    )  # Try to patch
     executor.destroy()
     # Check if the patch was applied successfully
     if apply_log.exit_code != 0:
@@ -221,7 +232,9 @@ def apply_patch_and_test(
     """
 
     executor = CodeExecutor(code_base_root, patch)
-    apply_log = executor.container.run_command(config.GIT_APPLY_PATCH)  # Try to patch
+    apply_log = executor.container.run_command(
+        config.GIT_APPLY_PATCH.split(" ")
+    )  # Try to patch
     if apply_log.exit_code != 0:  # this shouldn't be happening
         outp = apply_log.output.decode("utf-8")
         logger.error("Failed to apply patch", outp)

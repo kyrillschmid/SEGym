@@ -19,9 +19,7 @@ def slugify(value):
 
     value = str(value)
     value = (
-        unicodedata.normalize("NFKD", value)
-        .encode("ascii", "ignore")
-        .decode("ascii")
+        unicodedata.normalize("NFKD", value).encode("ascii", "ignore").decode("ascii")
     )
     value = re.sub(r"[^\w\s-]", "", value.lower())
     return re.sub(r"[-\s]+", "-", value).strip("-_")
@@ -35,6 +33,8 @@ def find_file(root_dir: str, filename: str) -> str:
     for f in glob.glob(f"{root_dir}/**/{filename}", recursive=True):
         f_abs = os.path.abspath(f)
         rel_path = os.path.relpath(f_abs, root_abs).replace("\\", "/")
+        if not rel_path.startswith("./"):
+            rel_path = "./" + rel_path
         return rel_path
     raise FileNotFoundError(f"File {filename} not found in {root_dir}")
 

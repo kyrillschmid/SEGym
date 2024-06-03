@@ -125,26 +125,30 @@ Only include one change in your response. If you need to make multiple changes, 
     @pydantic.root_validator(pre=True)
     def generate_patch(cls, v):
         logger.info(f"Validating {v}")
-        # remove trailing whitespace and trailing `./` and `/`
-        for f in "filename", "old_code", "new_code":
-            if f not in v:
-                logger.error(f"Missing field {f} in {v}")
-                raise ValueError(f"Missing field {f} in {v}")
-        v["filename"] = v["filename"].strip()
-        if v["filename"].startswith("./"):
-            v["filename"] = v["filename"][2:]
-        if v["filename"].startswith("/"):
-            v["filename"] = v["filename"][1:]
-        if cls.code_base_root is None:
-            logger.error("No code base root provided, cannot generate patch")
-            raise ValueError("No code base root provided, cannot generate patch")
-        patch_str = runner.generate_patch(
-            code_base_root=cls.code_base_root,
-            filename=v["filename"],
-            old_code=v["old_code"],
-            new_code=v["new_code"],
-        )
-        cls.patch_file = patch_str
-        v["patch_file"] = patch_str
-        logger.info(f"Patch generated successfully: {cls.patch_file}")
-        return v
+        try:
+            # remove trailing whitespace and trailing `./` and `/`
+            for f in "filename", "old_code", "new_code":
+                if f not in v:
+                    logger.error(f"Missing field {f} in {v}")
+                    raise ValueError(f"Missing field {f} in {v}")
+            v["filename"] = v["filename"].strip()
+            if v["filename"].startswith("./"):
+                v["filename"] = v["filename"][2:]
+            if v["filename"].startswith("/"):
+                v["filename"] = v["filename"][1:]
+            if cls.code_base_root is None:
+                logger.error("No code base root provided, cannot generate patch")
+                raise ValueError("No code base root provided, cannot generate patch")
+            patch_str = runner.generate_patch(
+                code_base_root=cls.code_base_root,
+                filename=v["filename"],
+                old_code=v["old_code"],
+                new_code=v["new_code"],
+            )
+            cls.patch_file = patch_str
+            v["patch_file"] = patch_str
+            logger.info(f"Patch generated successfully: {cls.patch_file}")
+            return v
+        except Exception as e:
+            logger.error("Error generating patch", exc_info=True)
+            raise e

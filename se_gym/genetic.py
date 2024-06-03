@@ -91,9 +91,9 @@ class Population:
         self,
         initial_individuals: typing.List[prompt],
         sampler,
-        percent_elite: float = 0.3,
-        percent_mutation: float = 0.3,
-        percent_crossover: float = 0.3,
+        percent_elite: float = 0.0,
+        percent_mutation: float = 1,
+        percent_crossover: float = 0.0,
     ):
         assert (
             percent_elite + percent_mutation + percent_crossover <= 1
@@ -154,26 +154,32 @@ class Population:
         new_population = []
         new_population.extend([x[0] for x in sorted_population[: self.num_elite]])
 
-        if self.num_mutation > 0:
-            to_mutate = random.sample(
-                sorted_population[: self.num_elite], self.num_mutation
-            )
-            for ind, fit in to_mutate:
-                new_population.append(self._mutate(ind, fit))
-
-        if self.num_crossover > 0:
-            to_crossover = random.sample(sorted_population, self.num_crossover * 2)
-            for i in range(0, len(to_crossover), 2):
-                new_population.extend(
-                    self._crossover(
-                        to_crossover[i][0],
-                        to_crossover[i + 1][0],
-                        to_crossover[i][1],
-                        to_crossover[i + 1][1],
-                    )
+        try:
+            if self.num_mutation > 0:
+                to_mutate = random.sample(
+                    sorted_population[: self.num_elite], self.num_mutation
                 )
+                for ind, fit in to_mutate:
+                    new_population.append(self._mutate(ind, fit))
+        except Exception:
+            pass
+
+        try:
+            if self.num_crossover > 0:
+                to_crossover = random.sample(sorted_population, self.num_crossover * 2)
+                for i in range(0, len(to_crossover), 2):
+                    new_population.extend(
+                        self._crossover(
+                            to_crossover[i][0],
+                            to_crossover[i + 1][0],
+                            to_crossover[i][1],
+                            to_crossover[i + 1][1],
+                        )
+                    )
+        except Exception:
+            pass
         while len(new_population) < len(self.individuals):
-            new_population.append(random.choice(self.individuals[: self.num_elite]))
+            new_population.append(random.choice(self.individuals[self.num_elite :]))
         self.individuals = new_population  # update the population
         logger.debug(f"New population: {self.individuals}")
 
