@@ -7,4 +7,5 @@ GIT_CHECK_PATCH = "git apply --check --ignore-space-change --ignore-whitespace -
 GIT_DISCARD_CHANGES = "git reset --hard HEAD"
 GIT_DIFF = "git diff"
 MODEL_NAME = "llama3:8b"
-FUZZY_MATCH_THRESHOLD = 0.8
+EVO_MODEL_NAME = None
+FUZZY_MATCH_THRESHOLD = 80

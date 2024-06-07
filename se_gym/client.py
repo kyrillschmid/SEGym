@@ -29,11 +29,14 @@ class _Client:
         **kwargs,
     ):
         assert _Client._instance is not None, "Client has to be initialized first"
+        if "model" not in kwargs:
+            kwargs["model"] = config.MODEL_NAME
+        if "max_retries" not in kwargs:
+            kwargs["max_retries"] = config.MAX_RETRIES
+        if "timeout" not in kwargs:
+            kwargs["timeout"] = config.TIMEOUT_SECONDS
         resp = _Client._instance.chat.completions.create(
             messages=messages,
-            model=config.MODEL_NAME,
-            max_retries=config.MAX_RETRIES,
-            timeout=config.TIMEOUT_SECONDS,
             **kwargs,
         )
         if isinstance(field_name, list):
