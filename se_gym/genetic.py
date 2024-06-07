@@ -31,18 +31,23 @@ class Child(pydantic.BaseModel):
     )
 
 
+BASE_SYSTEM_PROMPT = """
+You are a prompt engineer. 
+A fitness of 0 means the prompt is very bad, such that the model has not been able to generate a valid response. In this case, stress the importance of readability and clarity and the correct format.
+You always output in JSON format.
+You are writing the prompt for a weak LLM model. The model is not very good at extrapolating from the prompt, so you need to be very clear and explicit in your instructions.
+"""
+
 CROSSOVER_SYSTEM_PROMPT = """
 You are a prompt engineer. 
 You are trying to improve the quality of two prompts (instructions) using a genetic algorithm by performing a crossover operation.
 During the crossover operation, you combine two prompts to create two new prompts.
 You are trying to maximize the fitness of the new prompts. 
 The two parent prompts performed well in the previous generation, receiving fitness scores of {fitness1} and {fitness2} respectively. Fitness is a score between 0 and 1, where higher is better. A fitness score of 1 means the prompt is good, a fitness score of 0 means the prompt is very bad.
-A fitness of 0 means the prompt is very bad, such that the model has not been able to generate a valid response. In this case, stress the importance of readability and clarity and the correct format.
 To increase the fitness of the child prompts, extract the best parts of the two parent prompts and combine them in a way that improves the overall quality. 
 You know that the child prompts should be similar to the parent prompts, but not identical. 
 You also know that the child prompts should be different from each other.
 You know the fitness scores of the parent prompts and how they are calculated.
-You alway output in JSON format.
 """
 
 CROSSOVER_USER_PROMPT = """
@@ -66,10 +71,8 @@ During the mutation operation, you modify the prompt to create a new prompt.
 You are trying to maximize the fitness of the new prompt.
 The parent prompt performed not so well in the previous generation, receiving a fitness score of {fitness}. Fitness is a score between 0 and 1, where higher is better. A fitness score of 1 means the prompt is good, a fitness score of 0 means the prompt is very bad.
 To increase the fitness of the child prompt, make major changes to the parent prompt that improve the overall quality.
-A fitness of 0 means the prompt is very bad, such that the model has not been able to generate a valid response. In this case, stress the importance of readability and clarity and the correct format.
 You know that the child prompt should be similar to the parent prompt, but not identical.
 You know the fitness score of the parent prompt and how it is calculated.
-You always output in JSON format.
 """
 
 MUTATION_USER_PROMPT = """
@@ -101,6 +104,7 @@ class Population:
             percent_elite + percent_mutation + percent_crossover <= 1
         ), "The sum of the percentages should be less than or equal to 1."
         self.individuals = initial_individuals
+        logger.debug(f"New population: {self.individuals}")
         self.sampler = sampler
         self.num_elite = int(percent_elite * len(self.individuals))
         self.num_mutation = int(percent_mutation * len(self.individuals))
@@ -111,11 +115,13 @@ class Population:
 
     def _mutate(self, parent: prompt, fitness: float):
         logger.debug(f"Mutating {parent} with fitness {fitness}")
+        model = config.EVO_MODEL_NAME or config.MODEL_NAME
         resp = client._Client.completions_create(
             messages=get_messages(
-                MUTATION_SYSTEM_PROMPT.format(fitness=fitness),
+                BASE_SYSTEM_PROMPT + MUTATION_SYSTEM_PROMPT.format(fitness=fitness),
                 MUTATION_USER_PROMPT.format(fitness=fitness, parent=parent),
             ),
+            model=model,
             response_model=Child,
             field_name="child",
         )
@@ -127,15 +133,19 @@ class Population:
         logger.debug(
             f"Crossover {parent1} with fitness {fitness1} and {parent2} with fitness {fitness2}"
         )
+        model = config.EVO_MODEL_NAME or config.MODEL_NAME
         resp = client._Client.completions_create(
             messages=get_messages(
-                CROSSOVER_SYSTEM_PROMPT.format(fitness1=fitness1, fitness2=fitness2),
+                BASE_SYSTEM_PROMPT
+                + CROSSOVER_SYSTEM_PROMPT.format(fitness1=fitness1, fitness2=fitness2),
                 CROSSOVER_USER_PROMPT.format(
                     fitness1=fitness1,
                     fitness2=fitness2,
                     parent1=parent1,
                     parent2=parent2,
                 ),
+                model=model,
+                temperature=0.2,
             ),
             response_model=Children,
             field_name=["child1", "child2"],
