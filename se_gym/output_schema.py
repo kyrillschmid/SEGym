@@ -97,14 +97,14 @@ class ChangePatchOutput(OutputSchema):
     new_code: str = pydantic.Field(
         description="The new code to replace the original code."
     )
-    # do not initialize this field, it will be generated
-    # patch_file: typing.Optional[str] = pydantic.Field(no_init=True)
-    path_file: typing.ClassVar[str] = ""
 
     prompt: typing.ClassVar[str] = """
-The output should be formatted as a JSON instance that conforms to the JSON schema below.\n\n
-JSON_FORMAT_STRING
-\n
+The output should be formatted as a JSON instance that conforms to the JSON schema below.
+{
+    'filename': The filename of the file to be changed. Use the exact filename that was provided to you. Do not modify it. If you are modifying multiple files, only list one file here. You will be able to modify multiple files in the next step.
+    'old_code': This is the original code provided above. Do not modify it, just paste the part you want to replace.
+    'new_code': This code will replace the original code. 
+}
 
 Make sure you use the proper filename. Do not filenames like `/home/user/scratch/`, but always use the exact filename that you see in the prompt. Do not modify the filename. 
 The `/scratch` directory does not exist, use the known directories and files.
@@ -119,6 +119,8 @@ EXAMPLE: If you want to replace the code in the file `./src/main.py` from `Hello
 
 Only reply using this exact JSON format. Do not include anything else in your response.
 Only include one change in your response. If you need to make multiple changes, you will be able to do so in the next step.
+Your answer must be in JSON format. Make sure to include the keys "filename", "old_code", and "new_code". Refrence filenames exactly as they are provided to you. Only use the "filename", "old_code", and "new_code" keys.
+REPLACE ONLY THE CODE THAT NEEDS TO BE CHANGED, NOT THE ENTIRE FILE. WRAP THE NEW CODE IN THE SAME FUNCTION OR CLASS AS THE OLD CODE.
 
 """
 
