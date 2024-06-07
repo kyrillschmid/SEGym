@@ -151,11 +151,14 @@ def check_patch(code_base_root: str, patch: str):
 
 
 def get_code_span(full_code: str, partial_code: str) -> str:
-    pattern = regex.compile(
-        "(" + regex.escape(partial_code) + "){i,d,e}",
-        regex.IGNORECASE | regex.ENHANCEMATCH,
-    )
-    match = pattern.search(full_code)
+    ids_max = str(int(len(partial_code) * config.FUZZY_MATCH_THRESHOLD / 100))
+    try:
+        match = regex.search(
+            "(?b)(" + regex.escape(partial_code) + "){i<=" + ids_max + "}", full_code
+        )
+    except Exception as e:
+        logger.info("Pattern exception", exc_info=True)
+        raise ValueError("Old code not found in the file")
     if match is None:
         raise ValueError("Old code not found in the file")
     else:
