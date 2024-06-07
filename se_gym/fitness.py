@@ -19,6 +19,8 @@ def percent_successfull(test_results: typing.Union[api.State, dict]) -> float:
     Returns:
         float: The percentage of successful tests. Higher is better.
     """
+    if isinstance(test_results, api.InvalidState):
+        return 0
     if isinstance(test_results, api.State):
         test_results = test_results.logs
     if not test_results:
@@ -33,6 +35,8 @@ def num_failed_tests(test_results: typing.Union[api.State, dict]) -> int:
     """
     Calculate the absolute number of failed or errored tests. This might incentivize the solver to avoid adding tests that are likely to fail.
     """
+    if isinstance(test_results, api.InvalidState):
+        return 0
     if isinstance(test_results, api.State):
         test_results = test_results.logs
     if not test_results:

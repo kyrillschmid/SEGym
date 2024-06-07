@@ -1,10 +1,5 @@
 """
 This module allows to call a LLM to generate a patch file based on a given system prompt and context.
-
-Several parts of this code are inspired by langchain.
-https://github.com/langchain-ai/langchain/blob/70a79f45d78f4261418f9bf3a32a829bb63b94b2/libs/core/langchain_core/output_parsers/format_instructions.py
-https://github.com/langchain-ai/langchain/blob/70a79f45d78f4261418f9bf3a32a829bb63b94b2/libs/core/langchain_core/output_parsers/json.py
-
 """
 
 import typing

@@ -37,6 +37,7 @@ You are trying to improve the quality of two prompts (instructions) using a gene
 During the crossover operation, you combine two prompts to create two new prompts.
 You are trying to maximize the fitness of the new prompts. 
 The two parent prompts performed well in the previous generation, receiving fitness scores of {fitness1} and {fitness2} respectively. Fitness is a score between 0 and 1, where higher is better. A fitness score of 1 means the prompt is good, a fitness score of 0 means the prompt is very bad.
+A fitness of 0 means the prompt is very bad, such that the model has not been able to generate a valid response. In this case, stress the importance of readability and clarity and the correct format.
 To increase the fitness of the child prompts, extract the best parts of the two parent prompts and combine them in a way that improves the overall quality. 
 You know that the child prompts should be similar to the parent prompts, but not identical. 
 You also know that the child prompts should be different from each other.
@@ -65,6 +66,7 @@ During the mutation operation, you modify the prompt to create a new prompt.
 You are trying to maximize the fitness of the new prompt.
 The parent prompt performed not so well in the previous generation, receiving a fitness score of {fitness}. Fitness is a score between 0 and 1, where higher is better. A fitness score of 1 means the prompt is good, a fitness score of 0 means the prompt is very bad.
 To increase the fitness of the child prompt, make major changes to the parent prompt that improve the overall quality.
+A fitness of 0 means the prompt is very bad, such that the model has not been able to generate a valid response. In this case, stress the importance of readability and clarity and the correct format.
 You know that the child prompt should be similar to the parent prompt, but not identical.
 You know the fitness score of the parent prompt and how it is calculated.
 You always output in JSON format.
@@ -202,6 +204,7 @@ class Population:
             try:
                 actions.append(self.sampler(system_prompt=ind, context=obs))
             except Exception:
+                actions.append("")
                 logger.warning(f"Failed to sample {ind}. ", exc_info=True)
         return actions
 

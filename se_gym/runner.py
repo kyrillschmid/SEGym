@@ -153,7 +153,7 @@ def check_patch(code_base_root: str, patch: str):
 def get_code_span(full_code: str, partial_code: str) -> str:
     pattern = regex.compile(
         "(" + regex.escape(partial_code) + "){i,d,e}",
-        regex.BESTMATCH | regex.IGNORECASE | regex.ENHANCEMATCH,
+        regex.IGNORECASE | regex.ENHANCEMATCH,
     )
     match = pattern.search(full_code)
     if match is None:

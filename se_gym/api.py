@@ -21,6 +21,7 @@ if not os.path.exists(config.DEFAULT_SAVE_PATH):
 def make(dataset: str = "princeton-nlp/SWE-bench_Lite_oracle/dev"):
     return Environment(get_ds(dataset))
 
+
 __dummy_repo = dict(
     repo=["gstenzel/ignore-this-dummy"],
     instance_id=["1"],
@@ -87,6 +88,9 @@ class State:
     )
 
 
+class InvalidState(State): ...
+
+
 class Environment:
     def __init__(self, dataset: datasets.Dataset):
         """
@@ -99,7 +103,7 @@ class Environment:
         self.test_patch = None
         self.fail_to_pass = None
 
-    def reset(self):
+    def reset(self) -> State:
         """
         Return a new instance of the selected environment.
         """
@@ -121,12 +125,19 @@ class Environment:
             fail_to_pass=self.fail_to_pass,
         )
 
-    def step(self, action: typing.Union[str, typing.List[str]]):
+    def step(self, action: typing.Union[str, typing.List[str]]) -> State:
         """
         Perform an action in the environment.
         """
         if isinstance(action, list):
             return [self.step(a) for a in action]
+        if not action:  # Sampler has produced invalid patch
+            logger.info("Invalid patch, skipping")
+            return InvalidState(
+                path=self.current_path,
+                issue=self.current_issue,
+                fail_to_pass=self.fail_to_pass,
+            )
         tree = runner.apply_patch_and_test(
             code_base_root=self.current_path, patch=action
         )
