@@ -5,6 +5,7 @@ import random
 import typing
 import subprocess
 import logging
+import regex as re
 
 from . import utils
 from . import config
@@ -31,6 +32,9 @@ __dummy_repo = dict(
     ],
     environment_setup_commit=["dd707f99dd21d68131c1b97de5c8820f3590cb97"],
     test_patch=["[]"],
+    text=[
+        "Context\n...\n[start of magic/main.py]\n...\n[end of magic/main.py]\n...\n[start of magic/__init__.py]\n...\n[end of magic/__init__.py][start of magic/test/test_main.py]\n...\n[end of magic/test/test_main.py]\n...\nContext\n...\n"
+    ],
     FAIL_TO_PASS=[
         "['test_string_inversion_1 (test.test_main.test_string_inversion_1)', 'test_string_inversion_2 (test.test_main.test_string_inversion_1)']"
     ],
@@ -102,6 +106,7 @@ class Environment:
         self.current_issue = None
         self.test_patch = None
         self.fail_to_pass = None
+        self.oracle_files = None
 
     def reset(self) -> State:
         """
@@ -116,9 +121,16 @@ class Environment:
         )
         self.current_issue = self.dataset["problem_statement"][self.current_index]
         self.test_patch = self.dataset["test_patch"][self.current_index]
-        self.fail_to_pass = self.parse_fail_to_pass(
+        self.fail_to_pass = self._parse_fail_to_pass(
             self.dataset["FAIL_TO_PASS"][self.current_index], self.current_path
         )
+        try:
+            self.oracle_files = self._parse_oracle_text(
+                self.dataset["text"][self.current_index]
+            )
+        except Exception:
+            logger.info("No oracle files found", exc_info=True)
+            self.oracle_files = []
         return State(
             path=self.current_path,
             issue=self.current_issue,
@@ -150,7 +162,12 @@ class Environment:
         )
 
     @staticmethod
-    def parse_fail_to_pass(fail_to_pass: str, current_path: str) -> typing.List[str]:
+    def _parse_oracle_text(text: str) -> typing.List[str]:
+        pat = re.compile(r"\[start of (.*?)\]")
+        return pat.findall(text)
+
+    @staticmethod
+    def _parse_fail_to_pass(fail_to_pass: str, current_path: str) -> typing.List[str]:
         """
         Parse the fail to pass string and return the list of tests that need to be fixed.
         E.g. "['test_boolean_expression_combined (expressions.tests.BasicExpressionsTests)', 'test_boolean_expression_combined_with_empty_Q (expressions.tests.BasicExpressionsTests)']"
