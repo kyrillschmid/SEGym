@@ -13,7 +13,7 @@ from . import runner
 
 random.seed(15)
 logger = logging.getLogger("api")
-__dict__ = ["make"]
+__all__ = ["make"]
 
 if not os.path.exists(config.DEFAULT_SAVE_PATH):
     os.makedirs(config.DEFAULT_SAVE_PATH)
@@ -108,12 +108,14 @@ class Environment:
         self.fail_to_pass = None
         self.oracle_files = None
 
-    def reset(self) -> State:
+    def reset(self, index: typing.Optional[int] = None) -> State:
         """
         Return a new instance of the selected environment.
         """
-        len_ds = sum(1 for _ in self.dataset["instance_id"])
-        self.current_index = random.randint(0, len_ds - 1)
+        if index is None:
+            len_ds = sum(1 for _ in self.dataset["instance_id"])
+            index = random.randint(0, len_ds - 1)
+        self.current_index = index
         self.current_path = setup_repo(
             self.dataset["repo"][self.current_index],
             self.dataset["environment_setup_commit"][self.current_index],
