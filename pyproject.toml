@@ -38,3 +38,6 @@ python-Levenshtein = "^0.25.0"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.pyright]
+exclude = ["./temp/**"]
