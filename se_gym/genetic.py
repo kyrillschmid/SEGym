@@ -215,6 +215,16 @@ class Population:
                 logger.warning(f"Failed to sample {ind}. ", exc_info=True)
         return actions
 
+    def get_action(self, individual, observation):
+        """
+        Get the action for a specific individual.
+        """
+        try:
+            return self.sampler(system_prompt=individual, context=observation)
+        except Exception:
+            logger.warning(f"Failed to sample {individual}. ", exc_info=True)
+            return ""
+
 
 class LLMPopulation:
     """
