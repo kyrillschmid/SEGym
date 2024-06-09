@@ -49,8 +49,9 @@ class Selector(abc.ABC):
     ):
         docs = []
         for doc in documents:
-            if doc.path in state.fail_to_pass:
-                docs.append(doc.get_formatted())
+            if state.fail_to_pass:
+                if doc.path in state.fail_to_pass:
+                    docs.append(doc.get_formatted())
         return "\n".join(docs)
 
 
