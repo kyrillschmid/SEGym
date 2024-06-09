@@ -5,6 +5,8 @@ from . import read
 from se_gym import api
 import typing
 
+__all__ = ["Selector", "BM25Selector", "FullSelector"]
+
 logger = logging.getLogger("observe.select")
 
 

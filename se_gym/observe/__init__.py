@@ -53,3 +53,14 @@ class Observer:
 </LOGS>
 =========================
     """
+
+    def from_env(self, env):
+        self.reader = self.reader.from_env(env)
+        self.clear_cache()
+        return self
+
+    def clear_cache(self):
+        self.reader.clear_cache()
+        self.selector.clear_cache()
+        return self
+    

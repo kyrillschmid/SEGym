@@ -5,6 +5,8 @@ import glob
 import typing
 import ast
 
+__all__ = ["Document", "Reader", "RawReader", "OracleReader", "ASTReader"]
+
 
 class Document:
     """
@@ -64,6 +66,18 @@ class Reader(abc.ABC):
     @abc.abstractmethod
     def _populate(self): ...
 
+    @staticmethod
+    @abc.abstractmethod
+    def from_env(env):
+        """Create a reader from the environment."""
+
+    @staticmethod
+    def _format_filepath(filepath) -> str:
+        filepath = filepath.replace("\\", "/").replace("//", "/")
+        if filepath.startswith("/"):
+            filepath = filepath[1:]
+        return filepath
+
 
 class RawReader(Reader):
     """
@@ -85,6 +99,10 @@ class RawReader(Reader):
             with open(f, "r") as file:
                 documents.append(Document(f.replace(self.root_dir, ""), file.read()))
         return documents
+
+    @staticmethod
+    def from_env(env):
+        return RawReader(env.current_path)
 
 
 class OracleReader(Reader):
@@ -114,6 +132,13 @@ class OracleReader(Reader):
                 )
         return documents
 
+    @staticmethod
+    def from_env(env):
+        return OracleReader(
+            root_dir=env.current_path,
+            files=[env.current_path + "/" + f for f in env.oracle_files],
+        )
+
 
 class _DocstringExtractor(ast.NodeVisitor):
     """
@@ -130,7 +155,7 @@ class _DocstringExtractor(ast.NodeVisitor):
             "docstring": ast.get_docstring(node),
             "args": [ast.unparse(arg) for arg in node.args.args],
             "returns": ast.unparse(node.returns) if node.returns else None,
-            "lineno": node.lineno,
+            "lineno": node.lineno - 1,
             "end_lineno": node.end_lineno,
         }
 
@@ -140,7 +165,7 @@ class _DocstringExtractor(ast.NodeVisitor):
             "name": node.name,
             "docstring": ast.get_docstring(node),
             "methods": [],
-            "lineno": node.lineno,
+            "lineno": node.lineno - 1,
             "end_lineno": node.end_lineno,
         }
         for item in node.body:
@@ -229,8 +254,16 @@ class ASTReader(Reader):
         for f in glob.glob(self.path, recursive=True):
             with open(f, "r") as file:
                 filefull = file.read()
-            documents.extend(ASTReader._ast2doc(f.replace(self.root_dir, ""), filefull))
+            documents.extend(
+                ASTReader._ast2doc(
+                    self._format_filepath(f.replace(self.root_dir, "")), filefull
+                )
+            )
         return documents
+
+    @staticmethod
+    def from_env(env):
+        return ASTReader(env.current_path)
 
 
 class Summarizer(Reader):
