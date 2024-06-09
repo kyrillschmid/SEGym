@@ -9,7 +9,7 @@ import logging
 from . import config
 from . import client
 
-__dict__ = ["Population", "LLMPopulation"]
+__all__ = ["Population", "LLMPopulation"]
 
 prompt = typing.Annotated[str, "Prompt to an LLM"]
 
@@ -97,7 +97,7 @@ class Population:
         initial_individuals: typing.List[prompt],
         sampler,
         percent_elite: float = 0.0,
-        percent_mutation: float = 1,
+        percent_mutation: float = 1.0,
         percent_crossover: float = 0.0,
     ):
         assert (
@@ -144,9 +144,9 @@ class Population:
                     parent1=parent1,
                     parent2=parent2,
                 ),
-                model=model,
-                temperature=0.2,
             ),
+            model=model,
+            temperature=0.2,
             response_model=Children,
             field_name=["child1", "child2"],
         )
@@ -166,32 +166,29 @@ class Population:
         new_population = []
         new_population.extend([x[0] for x in sorted_population[: self.num_elite]])
 
-        try:
-            if self.num_mutation > 0:
-                to_mutate = random.sample(
-                    sorted_population[: self.num_elite], self.num_mutation
-                )
-                for ind, fit in to_mutate:
-                    new_population.append(self._mutate(ind, fit))
-        except Exception:
-            pass
+        if self.num_mutation > 0:
+            to_mutate = random.sample(
+                sorted_population[self.num_elite :], self.num_mutation
+            )
+            for ind, fit in to_mutate:
+                new_population.append(self._mutate(ind, fit))
 
-        try:
-            if self.num_crossover > 0:
-                to_crossover = random.sample(sorted_population, self.num_crossover * 2)
-                for i in range(0, len(to_crossover), 2):
-                    new_population.extend(
-                        self._crossover(
-                            to_crossover[i][0],
-                            to_crossover[i + 1][0],
-                            to_crossover[i][1],
-                            to_crossover[i + 1][1],
-                        )
+        if self.num_crossover > 0:
+            to_crossover = random.sample(sorted_population, self.num_crossover * 2)
+            for i in range(0, len(to_crossover), 2):
+                new_population.extend(
+                    self._crossover(
+                        to_crossover[i][0],
+                        to_crossover[i + 1][0],
+                        to_crossover[i][1],
+                        to_crossover[i + 1][1],
                     )
-        except Exception:
-            pass
+                )
+
         while len(new_population) < len(self.individuals):
-            new_population.append(random.choice(self.individuals[self.num_elite :]))
+            rand = random.choice(self.individuals)
+            if rand not in new_population or random.random() < 0.1:
+                new_population.append(rand)
         self.individuals = new_population  # update the population
         logger.debug(f"New population: {self.individuals}")
 
