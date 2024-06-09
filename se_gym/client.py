@@ -4,6 +4,7 @@ from . import config
 import instructor
 import typing
 
+__all__ = ["set_client"]
 
 class _Client:
     _instance = None
@@ -43,3 +44,6 @@ class _Client:
             return [getattr(resp, field) for field in field_name]
         else:
             return getattr(resp, field_name)
+
+def set_client(client: openai.Client):
+    _Client(client=client)
