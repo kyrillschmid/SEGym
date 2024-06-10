@@ -37,3 +37,27 @@ If you have a Docker related issues with the mounted volume on Mac, the followin
 - [ ] Automatically read `devcontainer.json`, `.github/workflows`, ... to determine test commands and environment
 - [ ] Implement all remaining stubs
 - [ ] `api.State` should contain a git hash of the directory, allowing to clear observer caches if files are modified
+
+
+## Data Generation
+Using demo.ipynb as a reference, create a dataframe with the following columns:
+- model: str
+- epoch: int
+- issue: int
+- timestep: int
+- patch: str
+- score: float
+- time: float
+
+Fill up early convergence (runs not needing all timesteps) with NaNs for the remaining timesteps.
+
+For the baseline, for each model, calculate the total time used (including evolution). Then repeatedly exectute the prompt over and over, tracking:
+- model: str
+- issue: int
+- patch: str
+- score: float
+- time: float
+
+We want to show that brute force is less feasible than improving the prompts dynamically.
+
+Tracking can be done using W&B, or just using `pyarrow` + parquet.
