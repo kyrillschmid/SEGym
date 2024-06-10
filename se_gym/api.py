@@ -23,27 +23,12 @@ def make(dataset: str = "princeton-nlp/SWE-bench_Lite_oracle/dev"):
     return Environment(get_ds(dataset))
 
 
-__dummy_repo = dict(
-    repo=["gstenzel/ignore-this-dummy"],
-    instance_id=["1"],
-    base_commit=["dd707f99dd21d68131c1b97de5c8820f3590cb97"],
-    problem_statement=[
-        "The magic.main.invert_string function should reverse any string passed to it. But it doesn't. Please fix it."
-    ],
-    environment_setup_commit=["dd707f99dd21d68131c1b97de5c8820f3590cb97"],
-    test_patch=["[]"],
-    text=[
-        "Context\n...\n[start of magic/main.py]\n...\n[end of magic/main.py]\n...\n[start of magic/__init__.py]\n...\n[end of magic/__init__.py][start of magic/test/test_main.py]\n...\n[end of magic/test/test_main.py]\n...\nContext\n...\n"
-    ],
-    FAIL_TO_PASS=[
-        "['test_string_inversion_1 (test.test_main.test_string_inversion_1)', 'test_string_inversion_2 (test.test_main.test_string_inversion_1)']"
-    ],
-)
-
-
 def get_ds(dataset):
     if dataset == "dummy":
-        return __dummy_repo
+        import json
+
+        with open("./dummy_dataset.json", "r") as f:
+            return json.load(f)
     else:
         split = None
         if dataset.endswith("/dev") or dataset.endswith("/test"):
