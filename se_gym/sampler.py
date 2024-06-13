@@ -84,6 +84,7 @@ class Sampler:
                 messages=messages,
                 response_model=self.output_class,
                 field_name="patch_file",
+                model=config.MODEL_NAME,
             )
             logger.debug(f"API call took {time.time() - start_time} seconds")
             return resp
