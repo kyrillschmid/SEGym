@@ -11,6 +11,7 @@ temp/
 old_*
 temp*file.patch
 .cache.*.pkl
+data*.parquet
 
 .aider*
 !.aider.conf.yml
