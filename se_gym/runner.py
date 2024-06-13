@@ -250,6 +250,22 @@ def apply_patch_and_test(
     return tree
 
 
+def _just_test(
+    code_base_root: str, command: str = "pytest --junitxml=testresults.xml"
+) -> ET.Element:
+    """
+    Run tests on a codebase.
+    This is a helper function for testing purposes.
+    """
+    executor = CodeExecutor(code_base_root, "")
+    test_log = executor.container.run_command(command)  # Run the tests
+    test_xml = executor.container.run_command("cat testresults.xml")
+    executor.destroy()
+    xml_str = test_xml.output.decode("utf-8")
+    tree = ET.fromstring(xml_str)
+    return tree
+
+
 def parse_pytest_xml(tree: ET.Element) -> dict:
     """
     Parse the XML tree of a pytest test result.

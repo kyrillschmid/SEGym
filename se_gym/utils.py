@@ -5,8 +5,19 @@ from inspect import signature
 import glob
 import os
 import openai
+import pandas as pd
 
 logger = logging.getLogger("utils")
+
+
+def log_to_parqet(log_filename: str, **kwargs):
+    df_ = pd.DataFrame({k: [v] for k, v in kwargs.items()})
+    if os.path.exists(log_filename):
+        df = pd.read_parquet(log_filename)
+        df = pd.concat([df, df_], ignore_index=True)
+    else:
+        df = df_
+    df.to_parquet(log_filename)
 
 
 def slugify(value):
