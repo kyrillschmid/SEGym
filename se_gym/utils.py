@@ -6,8 +6,25 @@ import glob
 import os
 import openai
 import pandas as pd
+import pathlib
+import warnings
+import typing
 
 logger = logging.getLogger("utils")
+
+
+def str2path(s: typing.Any) -> str:
+    """
+    Attempt to convert a string into a pathlib.Path object.
+    """
+    if isinstance(s, pathlib.Path):
+        return s
+    if isinstance(s, str):
+        # warnings.warn(f"path {s} is a string. Try to use pathlib.Path instead.", stacklevel=2)
+        return pathlib.Path(s)
+    if s is None:
+        return
+    raise ValueError(f"Invalid path {s}")
 
 
 def log_to_parqet(log_filename: str, **kwargs):
