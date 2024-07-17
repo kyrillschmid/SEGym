@@ -7,3 +7,6 @@ The project is in a runnable state, generating meaningful data. However, there a
 - [ ] Automatically read `devcontainer.json`, `.github/workflows`, ... to determine test commands and environment
 - [ ] Implement all remaining stubs
 - [ ] `api.State` should contain a git hash of the directory, allowing to clear observer caches if files are modified
+- [ ] Implement a [hybrid retrieval](https://haystack.deepset.ai/tutorials/33_hybrid_retrieval) to combine `InMemoryEmbeddingRetriever` and `InMemoryBM25Retriever`
+- [ ] Add `SentenceWindowRetrieval` to `ast`.
+- [ ] Add caching to `Store`
