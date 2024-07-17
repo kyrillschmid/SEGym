@@ -49,9 +49,6 @@ build-backend = "poetry.core.masonry.api"
 [tool.pyright]
 exclude = ["./temp/**"]
 
-[tool.pyright]
-exclude = ["./temp/**"]
-
 [tool.ruff]
 line-length = 100
 
