@@ -1,9 +1,8 @@
 MAX_RETRIES = 3
+RAG_TOP_N = 4
 TIMEOUT_SECONDS = 60
 DEFAULT_SAVE_PATH = "./temp"
 DOCKER_TAG = "pytest-env"
-GIT_APPLY_PATCH = "git apply --ignore-space-change --ignore-whitespace --verbose --recount --inaccurate-eof ./file.patch"
-GIT_CHECK_PATCH = "git apply --check --ignore-space-change --ignore-whitespace --verbose --recount --inaccurate-eof ./file.patch"
 GIT_DISCARD_CHANGES = "git reset --hard HEAD"
 GIT_DIFF = "git diff"
 MODEL_NAME = "llama3:8b"
