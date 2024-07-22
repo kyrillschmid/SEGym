@@ -8,6 +8,7 @@ import random
 import logging
 from . import config
 from . import client
+from . import sampler2
 
 __all__ = ["Population", "LLMPopulation"]
 
@@ -26,9 +27,7 @@ class Children(pydantic.BaseModel):
 
 
 class Child(pydantic.BaseModel):
-    child: str = pydantic.Field(
-        description="Child prompt. It is a mutation of its parent."
-    )
+    child: str = pydantic.Field(description="Child prompt. It is a mutation of its parent.")
 
 
 BASE_SYSTEM_PROMPT = """
@@ -95,7 +94,7 @@ class Population:
     def __init__(
         self,
         initial_individuals: typing.List[prompt],
-        sampler,
+        sampler: sampler2.Sampler,
         percent_elite: float = 0.0,
         percent_mutation: float = 1.0,
         percent_crossover: float = 0.0,
@@ -127,9 +126,7 @@ class Population:
         )
         return resp
 
-    def _crossover(
-        self, parent1: prompt, parent2: prompt, fitness1: float, fitness2: float
-    ):
+    def _crossover(self, parent1: prompt, parent2: prompt, fitness1: float, fitness2: float):
         logger.debug(
             f"Crossover {parent1} with fitness {fitness1} and {parent2} with fitness {fitness2}"
         )
@@ -167,9 +164,7 @@ class Population:
         new_population.extend([x[0] for x in sorted_population[: self.num_elite]])
 
         if self.num_mutation > 0:
-            to_mutate = random.sample(
-                sorted_population[self.num_elite :], self.num_mutation
-            )
+            to_mutate = random.sample(sorted_population[self.num_elite :], self.num_mutation)
             for ind, fit in to_mutate:
                 new_population.append(self._mutate(ind, fit))
 
@@ -196,31 +191,31 @@ class Population:
         """
         Update the population based on the fitness scores.
         """
-        self._selection(fitnesses)
+        return self._selection(fitnesses)
 
-    def sample(self, observation):
+    def sample(self, states):
         """
         Sample actions from all the individuals.
         """
-        actions = []
-        for i, ind in enumerate(self.individuals):
-            if isinstance(observation, list):
-                obs = observation[i]
-            else:
-                obs = observation
-            try:
-                actions.append(self.sampler(system_prompt=ind, context=obs))
-            except Exception:
-                actions.append("")
-                logger.warning(f"Failed to sample {ind}. ", exc_info=True)
+        if not isinstance(states, list):
+            states = [states] * len(self.individuals)
+        actions = list(
+            map(
+                lambda x: self.get_action(x[0], x[1]),
+                zip(self.individuals, states),
+            )
+        )
         return actions
 
-    def get_action(self, individual, observation):
+    def get_action(self, individual: str, state):
         """
         Get the action for a specific individual.
         """
         try:
-            return self.sampler(system_prompt=individual, context=observation)
+            return self.sampler(
+                trainable_prompt=individual, state=state
+                # issue_description=state.issue, logs=state.logs
+            )
         except Exception:
             logger.warning(f"Failed to sample {individual}. ", exc_info=True)
             return ""
