@@ -7,7 +7,7 @@ import pathlib
 import logging
 
 from . import utils
-from . import runner
+from . import runner_host
 
 logger = logging.getLogger("output_validator")
 
@@ -24,9 +24,15 @@ class ChangePatchOutput(pydantic.BaseModel):
 
 @haystack.component
 class OutputValidator:
-    def __init__(self, code_base_root: pathlib.Path):
+    def __init__(
+        self,
+    ):
         self.retry_counter = 0
-        self.code_base_root = utils.str2path(code_base_root)
+        self.code_base_root = None
+        self.state = None
+
+    def update_state(self, state):
+        self.state = state
 
     @haystack.component.output_types(
         valid_replies=typing.List[str],
@@ -34,6 +40,10 @@ class OutputValidator:
         error_message=typing.Optional[str],
     )
     def run(self, replies: typing.List[str]):
+        logger.debug(f"OutputValidator received {replies}")
+        if self.state is None:
+            logger.critical("State is not set")
+            raise ValueError("State is not set")
         self.retry_counter += 1
         try:
             rep0 = replies[0]
@@ -49,14 +59,16 @@ class OutputValidator:
             ChangePatchOutput(**rep0_dict)
 
             # Attempt to construct a patch file
-            patch_str = runner.generate_patch(
-                code_base_root=self.code_base_root,
+            patch_str = runner_host.generate_patch(
+                repo=self.state.repo,
+                environment_setup_commit=self.state.setup_commit,
+                past_patches=self.state.previous_patches,
                 filename=rep0_dict["filename"],
                 old_code=rep0_dict["old_code"],
                 new_code=rep0_dict["new_code"],
             )
 
-            logging.debug(
+            logger.debug(
                 f"Output {replies} (iteration {self.retry_counter}) is cleaned to {rep0_dict} and patched to {patch_str}"
             )
 
@@ -64,7 +76,7 @@ class OutputValidator:
             return {"valid_replies": [patch_str]}
 
         except Exception as e:
-            logging.debug(
+            logger.debug(
                 f"Error in output validation (iteration {self.retry_counter}): {e}, model output was: {replies}"
             )
             return {"invalid_replies": replies, "error_message": str(e)}
