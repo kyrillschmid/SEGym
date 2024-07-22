@@ -1,15 +1,16 @@
-from dataclasses import dataclass
-import datasets
+import dataclasses
+
 import os
 import random
 import typing
-import subprocess
 import logging
 import regex as re
+import copy
 
 from . import utils
 from . import config
-from . import runner
+from . import runner_host
+from . import runner_docker
 
 random.seed(15)
 logger = logging.getLogger("api")
@@ -30,6 +31,8 @@ def get_ds(dataset):
         with open("./dummy_dataset.json", "r") as f:
             return json.load(f)
     else:
+        import datasets
+
         split = None
         if dataset.endswith("/dev") or dataset.endswith("/test"):
             split = dataset.split("/")[-1]
@@ -37,43 +40,18 @@ def get_ds(dataset):
         return datasets.load_dataset(dataset, split=split)
 
 
-def setup_repo(repo: str, environment_setup_commit: str, test_patch: str = ""):
-    logger.debug(f"Setting up repo {repo} at commit {environment_setup_commit}")
-    repo_slug = utils.slugify(repo)
-    os.makedirs(config.DEFAULT_SAVE_PATH, exist_ok=True)
-    target_path = f"{config.DEFAULT_SAVE_PATH}/{repo_slug}"
-    if not os.path.exists(f"{config.DEFAULT_SAVE_PATH}/{repo_slug}"):
-        subprocess.call(["git", "clone", f"https://github.com/{repo}.git", target_path])
-    subprocess.call(config.GIT_DISCARD_CHANGES.split(" "), cwd=target_path)
-    subprocess.call(["git", "checkout", environment_setup_commit], cwd=target_path)
-    if test_patch:
-        logger.debug("Applying test patch")
-        with open(f"{target_path}/file.patch", "w") as f:
-            f.write(test_patch)
-        proc = subprocess.Popen(
-            config.GIT_APPLY_PATCH.split(" "),
-            cwd=target_path,
-            stderr=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-        )
-        out, err = proc.communicate()
-        logger.debug(f"Applied test patch: out {out} err {err}")
-        os.unlink(f"{target_path}/file.patch")
-        subprocess.call(["git", "add", "."], cwd=target_path)
-        subprocess.call(
-            ["git", "commit", "-m", "Apply test patch"],
-            cwd=target_path,
-        )
-    return target_path
-
-
-@dataclass
+@dataclasses.dataclass
 class State:
+    repo: typing.Annotated[str, "Repository to be fixed"]
+    setup_commit: typing.Annotated[str, "Base commit"]
     path: typing.Annotated[str, "Path to the repository"]
     issue: typing.Annotated[str, "Issue to be fixed"]
-    logs: typing.Annotated[typing.Union[str, None], "Logs of previous steps"] = None
+    logs: typing.Annotated[typing.Union[str, None], "Logs of previous steps"] = ""
+    previous_patches: typing.Annotated[typing.List[str], "Previous patches"] = dataclasses.field(
+        default_factory=list
+    )
     fail_to_pass: typing.Annotated[typing.List[str], "Tests that currently fails"] = (
-        None
+        dataclasses.field(default_factory=list)
     )
 
 
@@ -81,17 +59,24 @@ class InvalidState(State): ...
 
 
 class Environment:
-    def __init__(self, dataset: datasets.Dataset):
+    def __init__(self, dataset):
         """
         Initialize the environment with a dataset. If the dataset is not available, it will be downloaded lazily.
         """
         self.dataset = dataset
+        self.dockerconnector = runner_docker.DockerConnector()
         self.current_index = None
         self.current_path = None
         self.current_issue = None
-        self.test_patch = None
-        self.fail_to_pass = None
-        self.oracle_files = None
+        self.current_fail_to_pass = None
+        self.current_oracle_files = None
+        self.current_repo = None
+        self.current_commit = None
+        self.num_challenges = (  # helper to get the number of issues in the dataset
+            self.dataset.num_rows
+            if not isinstance(self.dataset, dict)
+            else len(self.dataset[list(self.dataset.keys())[0]])
+        )
 
     def reset(self, index: typing.Optional[int] = None) -> State:
         """
@@ -101,30 +86,34 @@ class Environment:
             len_ds = sum(1 for _ in self.dataset["instance_id"])
             index = random.randint(0, len_ds - 1)
         self.current_index = index
-        self.current_path = setup_repo(
-            self.dataset["repo"][self.current_index],
-            self.dataset["environment_setup_commit"][self.current_index],
-            self.dataset["test_patch"][self.current_index],
-        )
+        self.current_repo = self.dataset["repo"][self.current_index]
         self.current_issue = self.dataset["problem_statement"][self.current_index]
-        self.test_patch = self.dataset["test_patch"][self.current_index]
-        self.fail_to_pass = self._parse_fail_to_pass(
+        self.current_commit = self.dataset["environment_setup_commit"][self.current_index]
+        test_patch = self.dataset["test_patch"][self.current_index]
+
+        self.current_path = runner_host.HostEnv.get_environment(
+            self.current_repo, self.current_commit
+        )
+        self.current_fail_to_pass = self._parse_fail_to_pass(
             self.dataset["FAIL_TO_PASS"][self.current_index], self.current_path
         )
         try:
-            self.oracle_files = self._parse_oracle_text(
+            self.current_oracle_files = self._parse_oracle_text(
                 self.dataset["text"][self.current_index]
             )
         except Exception:
             logger.info("No oracle files found", exc_info=True)
-            self.oracle_files = []
+            self.current_oracle_files = []
         return State(
             path=self.current_path,
             issue=self.current_issue,
-            fail_to_pass=self.fail_to_pass,
+            fail_to_pass=self.current_fail_to_pass,
+            previous_patches=[test_patch],
+            repo=self.current_repo,
+            setup_commit=self.current_commit,
         )
 
-    def step(self, action: typing.Union[str, typing.List[str]]) -> State:
+    def step(self, action: typing.Union[str, typing.List[str]], state) -> State:
         """
         Perform an action in the environment.
         """
@@ -132,21 +121,25 @@ class Environment:
             return [self.step(a) for a in action]
         if not action:  # Sampler has produced invalid patch
             logger.info("Invalid patch, skipping")
-            return InvalidState(
-                path=self.current_path,
-                issue=self.current_issue,
-                fail_to_pass=self.fail_to_pass,
-            )
-        tree = runner.apply_patch_and_test(
-            code_base_root=self.current_path, patch=action
+            return InvalidState(**state.__dict__)
+
+        container = self.dockerconnector.get_child_container(
+            repo=self.current_repo,
+            environment_setup_commit=self.current_commit,
         )
-        log = runner.parse_pytest_xml(tree)
-        return State(
-            path=self.current_path,
-            issue=self.current_issue,
-            logs=log,
-            fail_to_pass=self.fail_to_pass,
-        )
+        for patch in state.previous_patches:
+            if patch and patch != "[]":
+                self.dockerconnector.apply_patch(container, patch=patch)
+        self.dockerconnector.apply_patch(container, patch=action)
+        log = self.dockerconnector.run_tests(container)
+        container.kill()
+        new_state = copy.deepcopy(state)
+        if new_state.logs:
+            new_state.logs.append(log)
+        else:
+            new_state.logs = [log]
+
+        return new_state
 
     @staticmethod
     def _parse_oracle_text(text: str) -> typing.List[str]:
@@ -173,4 +166,4 @@ class Environment:
                 )
                 + ".py"
             )
-        return [utils.find_file(root_dir=current_path, filename=test) for test in tests]
+        return [runner_host.find_file(root_dir=current_path, filepath=test) for test in tests]
