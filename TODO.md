@@ -10,3 +10,4 @@ The project is in a runnable state, generating meaningful data. However, there a
 - [ ] Implement a [hybrid retrieval](https://haystack.deepset.ai/tutorials/33_hybrid_retrieval) to combine `InMemoryEmbeddingRetriever` and `InMemoryBM25Retriever`
 - [ ] Add `SentenceWindowRetrieval` to `ast`.
 - [ ] Add caching to `Store`
+- [ ] Add cleanups: `docker container prune` and auto-delete `temp` directory
