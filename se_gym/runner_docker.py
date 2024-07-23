@@ -65,67 +65,18 @@ class DockerConnector:
             sys.exit(1)
 
     @staticmethod
-    def _get_requirements_pip(temp_dir: str) -> typing.List[str]:
-        files = list(pathlib.Path(temp_dir).rglob("dev-requirements.txt"))
-        if not files:
-            files = list(pathlib.Path(temp_dir).rglob("requirements.txt"))
-        if not files:
-            raise FileNotFoundError("No requirements.txt or dev-requirements.txt found")
-        file = files[0].relative_to(temp_dir)
-        commands = ["RUN pip install -r " + str(file)]
-        return commands
-
-    @staticmethod
-    def _get_requirements_poetry(temp_dir: str) -> typing.List[str]:
-        files = list(pathlib.Path(temp_dir).rglob("poetry.lock"))
-        if not files:
-            raise FileNotFoundError("No poetry.lock found")
-        file = list(pathlib.Path(temp_dir).rglob("pyproject.toml"))[0].relative_to(temp_dir)
-        commands = [
-            "RUN pip install poetry",
-            "COPY " + str(file) + " .",
-            "RUN poetry install",
-        ]
-        return commands
-
-    @staticmethod
-    def _get_requirements_pipenv(temp_dir: str) -> typing.List[str]:
-        files = list(pathlib.Path(temp_dir).rglob("Pipfile"))
-        if not files:
-            raise FileNotFoundError("No Pipfile found")
-        file = files[0].relative_to(temp_dir)
-        commands = [
-            "RUN pip install pipenv",
-            "COPY " + str(file) + " .",
-            "RUN pipenv install",
-        ]
-        return commands
-
-    def build_image(self, repo: str, environment_setup_commit: str, tag: str):
-        """
-        Build a docker image for the given repo and commit. First, clone the repo, checkout the commit, and search for a requirements.txt, pipfile, pyproject.toml or poetry.lock file. Then, create a Dockerfile that does the cloning, checkout, and installs the dependencies.
-        Then, delete the repo again.
-
-        TODO: move this into a docker container
-        """
-        temp_dir = tempfile.mkdtemp(prefix=f"se_gym_{tag}_")
-        subprocess.run(["git", "clone",  f"https://github.com/{repo}.git", "repo"], cwd=temp_dir)
-        subprocess.run(
-            ["git", "checkout", environment_setup_commit],
-            cwd=os.path.join(temp_dir, "repo"),
-            check=True,
-        )
-
-        for req in [
-            self._get_requirements_pip,
-            self._get_requirements_poetry,
-            self._get_requirements_pipenv,
-        ]:
-            try:
-                install_command = req(temp_dir)
-                break
-            except FileNotFoundError:
-                pass
+    def _create_dockerfile(temp_dir: str, repo: str, environment_setup_commit: str) -> str:
+        all_files = [f for f in os.listdir(os.path.join(temp_dir, "repo"))]
+        if "dev-requirements.txt" in all_files:
+            install_command = ["RUN pip install -r dev-requirements.txt"]
+        elif "requirements.txt" in all_files:
+            install_command = ["RUN pip install -r requirements.txt"]
+        elif "poetry.lock" in all_files:
+            install_command = ["RUN pip install poetry", "RUN poetry install"]
+        elif "Pipfile" in all_files:
+            install_command = ["RUN pip install pipenv", "RUN pipenv install"]
+        elif "setup.py" in all_files:
+            install_command = ["RUN pip install . -e"]
         else:
             logger.warning("No requirements file found. Skipping requirements installation.")
             install_command = []
@@ -139,7 +90,23 @@ RUN git checkout {environment_setup_commit}
 {install_commands}
 RUN pip install pytest
 """
+        return dockerfile_str
 
+    def build_image(self, repo: str, environment_setup_commit: str, tag: str):
+        """
+        Build a docker image for the given repo and commit. First, clone the repo, checkout the commit, and search for a requirements.txt, pipfile, pyproject.toml or poetry.lock file. Then, create a Dockerfile that does the cloning, checkout, and installs the dependencies.
+        Then, delete the repo again.
+
+        TODO: move this into a docker container
+        """
+        temp_dir = tempfile.mkdtemp(prefix=f"se_gym_{tag}_")
+        subprocess.run(["git", "clone", f"https://github.com/{repo}.git", "repo"], cwd=temp_dir)
+        subprocess.run(
+            ["git", "checkout", environment_setup_commit],
+            cwd=os.path.join(temp_dir, "repo"),
+            check=True,
+        )
+        dockerfile_str = self._create_dockerfile(temp_dir, repo, environment_setup_commit)
         logger.info(f"Building image {tag} with Dockerfile:\n{dockerfile_str}")
         dockerfile = io.BytesIO(dockerfile_str.encode("utf-8"))
         self.client.images.build(fileobj=dockerfile, tag=tag)
@@ -185,7 +152,10 @@ RUN pip install pytest
             tar.addfile(tarinfo, io.BytesIO(patch.encode("utf-8")))
         tarstream.seek(0)
         assert container.put_archive("/repo", tarstream), "Failed to copy patch to container"
-        apply_log = container.exec_run("git apply file.patch --ignore-space-change --ignore-whitespace --verbose --recount --inaccurate-eof", workdir="/repo")
+        apply_log = container.exec_run(
+            "git apply file.patch --ignore-space-change --ignore-whitespace --verbose --recount --inaccurate-eof",
+            workdir="/repo",
+        )
         if apply_log.exit_code != 0:
             err = f"Failed to apply patch {patch}, error {apply_log.output.decode('utf-8')}"
             logger.info(err)
