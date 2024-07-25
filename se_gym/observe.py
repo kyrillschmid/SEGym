@@ -9,6 +9,7 @@ import logging
 import ast
 from . import utils
 from . import config
+from .codemapretriever import CodeMapRetriever
 
 logger = logging.getLogger("store")
 
@@ -24,18 +25,23 @@ def file_path_formatter(p: str) -> str:
 
 
 @haystack.component
-class PyFileToDocument:
+class PyFileConverter:
     @haystack.component.output_types(documents=typing.List[haystack.Document])
     def run(
         self,
         sources: typing.List[typing.Union[str, Path]],
+        base_path: typing.Union[str, Path],
     ):
         documents = []
         for source in sources:
+            relative = os.path.relpath(source, base_path)
             with open(source, "r") as f:
                 text = f.read()
             text = f"# {file_path_formatter(source)}\n```python\n{text}\n```"
-            doc = haystack.Document(content=text, meta={"name": source})
+            doc = haystack.Document(
+                content=text,
+                meta={"name": source, "file_path": source, "file_path_relative": relative},
+            )
             documents.append(doc)
         return {"documents": documents}
 
@@ -81,7 +87,24 @@ class ASTExtractor(ast.NodeVisitor):
 
 
 @haystack.component
-class PyASTToDocument:
+class TxtFileConverter:
+    def __init__(self):
+        self._c = TextFileToDocument()
+
+    @haystack.component.output_types(documents=typing.List[haystack.Document])
+    def run(
+        self,
+        sources: typing.List[typing.Union[str, Path]],
+        base_path: typing.Union[str, Path],
+    ):
+        docs = self._c.run(sources=sources)["documents"]
+        for doc in docs:
+            doc.meta["file_path_relative"] = os.path.relpath(doc.meta["file_path"], base_path)
+        return {"documents": docs}
+
+
+@haystack.component
+class PyASTConverter:
     INDENT = "    "
 
     def __init__(self, kind: typing.Literal["skeleton", "full"] = "skeleton"):
@@ -91,15 +114,16 @@ class PyASTToDocument:
     def run(
         self,
         sources: typing.List[typing.Union[str, Path]],
+        base_path: str,
     ):
         docs = []
         for source in sources:
             with open(source, "r") as f:
                 filefull = f.read()
             if self.kind == "skeleton":
-                docs += PyASTToDocument.ast2doc(source, filefull)
+                docs += PyASTConverter.ast2doc(source, filefull, base_path)
             elif self.kind == "full":
-                docs += PyASTToDocument.split_code(source, filefull)
+                docs += PyASTConverter.split_code(source, filefull, base_path)
             else:
                 raise NotImplementedError(f"Kind {self.kind} not implemented")
         return {"documents": docs}
@@ -109,12 +133,12 @@ class PyASTToDocument:
         """Make sure each node has a reference to its parent."""
         for child in ast.iter_child_nodes(node):
             child.parent = node
-            PyASTToDocument.add_parents(child)
+            PyASTConverter.add_parents(child)
 
     @staticmethod
-    def ast2doc(filename, filefull):
+    def ast2doc(filename, filefull, base_path):
         tree = ast.parse(filefull)
-        PyASTToDocument.add_parents(tree)
+        PyASTConverter.add_parents(tree)
         extractor = ASTExtractor()
         extractor.visit(tree)
         docs = []
@@ -124,14 +148,14 @@ class PyASTToDocument:
                 start_line=item["lineno"],
                 end_line=item["end_lineno"],
                 full_text=filefull,
+                file_path=filename,
+                file_path_relative=os.path.relpath(filename, base_path),
             )
             if item["type"] == "class":
-                docs.append(
-                    haystack.Document(content=PyASTToDocument.class2txt(item), meta=docargs)
-                )
+                docs.append(haystack.Document(content=PyASTConverter.class2txt(item), meta=docargs))
             elif item["type"] == "function":
                 docs.append(
-                    haystack.Document(content=PyASTToDocument.function2txt(item), meta=docargs)
+                    haystack.Document(content=PyASTConverter.function2txt(item), meta=docargs)
                 )
         return docs
 
@@ -140,9 +164,9 @@ class PyASTToDocument:
         assert item["type"] == "class", f"Item is not a class but {item['type']}."
         doctxts = [f"class {item['name']}:"]
         if item["docstring"]:
-            doctxts.append(f'{PyASTToDocument.INDENT}"""{item["docstring"]}"""')
+            doctxts.append(f'{PyASTConverter.INDENT}"""{item["docstring"]}"""')
         for method in item["methods"]:
-            doctxts.append(PyASTToDocument.function2txt(method, indent=1))
+            doctxts.append(PyASTConverter.function2txt(method, indent=1))
         return "\n".join(doctxts)
 
     @staticmethod
@@ -152,16 +176,16 @@ class PyASTToDocument:
         args = ", ".join(item["args"])
         if item["returns"]:
             doctxts.append(
-                f"{PyASTToDocument.INDENT * indent}def {item['name']}({args}) -> {item['returns']}:"
+                f"{PyASTConverter.INDENT * indent}def {item['name']}({args}) -> {item['returns']}:"
             )
         else:
-            doctxts.append(f"{PyASTToDocument.INDENT * indent}def {item['name']}({args}):")
+            doctxts.append(f"{PyASTConverter.INDENT * indent}def {item['name']}({args}):")
         if item["docstring"]:
-            doctxts.append(f'{PyASTToDocument.INDENT * (indent+1)}"""{item["docstring"]}"""')
+            doctxts.append(f'{PyASTConverter.INDENT * (indent+1)}"""{item["docstring"]}"""')
         return "\n".join(doctxts)
 
     @staticmethod
-    def split_code(filename, filefull) -> typing.List[haystack.Document]:
+    def split_code(filename, filefull, base_path) -> typing.List[haystack.Document]:
         def node2doc(code: str, node: ast.AST) -> haystack.Document:
             lines = code.splitlines()
             start_lineno = node.lineno - 1
@@ -172,7 +196,14 @@ class PyASTToDocument:
             text = f"# {file_path_formatter(filename)}\n" + f"```python\n{text}\n```"
             return haystack.Document(
                 content=text,
-                meta={"name": node_name, "start_lineno": start_lineno, "end_lineno": end_lineno},
+                meta={
+                    "name": node_name,
+                    "start_lineno": start_lineno,
+                    "end_lineno": end_lineno,
+                    "path": filename,
+                    "file_path": filename,
+                    "file_path_relative": os.path.relpath(filename, base_path),
+                },
             )
 
         tree = ast.parse(filefull)
@@ -234,7 +265,8 @@ class Store:
     def __init__(
         self,
         converter: typing.Literal["txt", "skeleton", "py", "ast"] = "txt",
-        retriever: typing.Literal["oracle", "bm25", "embedding", "full"] = "bm25",
+        retriever: typing.Literal["oracle", "bm25", "embedding", "full", "codemap"] = "bm25",
+        **kwargs,
     ):
         self.document_store = InMemoryDocumentStore(
             embedding_similarity_function="dot_product", bm25_tokenization_regex=r"\b\w\w+\b"
@@ -243,13 +275,13 @@ class Store:
         self.path = None
 
         if converter == "txt":
-            self.converter = TextFileToDocument()
+            self.converter = TxtFileConverter()
         elif converter == "skeleton":
-            self.converter = PyASTToDocument(kind="skeleton")
+            self.converter = PyASTConverter(kind="skeleton")
         elif converter == "ast":
-            self.converter = PyASTToDocument(kind="full")
+            self.converter = PyASTConverter(kind="full")
         elif converter == "py":
-            self.converter = PyFileToDocument()
+            self.converter = PyFileConverter()
         else:
             raise NotImplementedError(f"Converter {converter} not implemented")
 
@@ -265,6 +297,8 @@ class Store:
             self.retriever = OracleRetriever(document_store=self.document_store)
         elif retriever == "full":
             self.retriever = FullCodeRetriever(document_store=self.document_store)
+        elif retriever == "codemap":
+            self.retriever = CodeMapRetriever(document_store=self.document_store, llm=kwargs["llm"])
         else:
             raise NotImplementedError(f"Retriever {retriever} not implemented")
 
@@ -273,7 +307,9 @@ class Store:
         if self.path is not None:
             # TODO: add a check to see which files have been added or removed and update only those
             pass
+        if isinstance(self.retriever, CodeMapRetriever):
+            self.retriever.set_code_map(path)
         self.path = utils.str2path(path)
         files = list(self.path.rglob("*.py"))
-        docs = self.converter.run(sources=files)["documents"]
+        docs = self.converter.run(sources=files, base_path=path)["documents"]
         self.document_store.write_documents(docs, policy="overwrite")

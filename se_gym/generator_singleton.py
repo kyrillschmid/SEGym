@@ -25,6 +25,7 @@ def set_generator(generator):
 
 
 def get_generator():
+    assert _Generator._initialized, "Generator has to be initialized"
     return copy.deepcopy(_Generator._instance)
 
 

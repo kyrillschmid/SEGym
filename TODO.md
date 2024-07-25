@@ -11,3 +11,5 @@ The project is in a runnable state, generating meaningful data. However, there a
 - [ ] Add `SentenceWindowRetrieval` to `ast`.
 - [ ] Add caching to `Store`
 - [ ] Add cleanups: `docker container prune` and auto-delete `temp` directory
+- [ ] Case study comparing different retrieval methods
+- [ ] Check Code Map Retrieval performance with different LLMs
