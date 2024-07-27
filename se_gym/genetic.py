@@ -213,7 +213,8 @@ class Population:
         """
         try:
             return self.sampler(
-                trainable_prompt=individual, state=state
+                trainable_prompt=individual,
+                state=state,
                 # issue_description=state.issue, logs=state.logs
             )
         except Exception:

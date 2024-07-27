@@ -12,7 +12,7 @@ import tempfile
 logger = logging.getLogger("utils")
 
 
-def relpath(s: typing.Any, to:typing.Union[None,typing.Any]=None) -> str:
+def relpath(s: typing.Any, to: typing.Union[None, typing.Any] = None) -> str:
     """ "
     Get the current path relative to the temp directory.
     """

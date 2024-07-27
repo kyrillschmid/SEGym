@@ -43,11 +43,7 @@ def num_failed_tests(test_results: typing.Union[api.State, dict]) -> int:
         logger.info("No test results found")
         return 0
     return len(
-        [
-            k
-            for k, v in test_results.items()
-            if v["status"] == "failed" or v["status"] == "error"
-        ]
+        [k for k, v in test_results.items() if v["status"] == "failed" or v["status"] == "error"]
     )
 
 
