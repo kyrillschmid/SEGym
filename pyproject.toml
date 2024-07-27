@@ -41,6 +41,12 @@ haystack-ai = "^2.2.3"
 ollama-haystack = "^0.0.7"
 structlog = "^24.2.0"
 rich = "^13.7.1"
+anthropic = "^0.31.2"
+
+[tool.poetry.group.dev.dependencies]
+jupyter = "^1.0.0"
+ruff = "^0.5.5"
+
 
 [build-system]
 requires = ["poetry-core"]
