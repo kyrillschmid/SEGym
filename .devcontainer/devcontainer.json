@@ -12,7 +12,7 @@
 		"ghcr.io/devcontainers/features/docker-in-docker:2": {}
 	},
 	"forwardPorts": [],
-	"postCreateCommand": "poetry config virtualenvs.in-project true && poetry install && poetry shell",
+	"postCreateCommand": "poetry config virtualenvs.in-project true && poetry install --with dev && poetry shell",
 	"customizations": {
 		"vscode": {
 			"extensions": [
