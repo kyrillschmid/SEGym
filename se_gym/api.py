@@ -7,7 +7,6 @@ import logging
 import regex as re
 import copy
 
-from . import utils
 from . import config
 from . import runner_host
 from . import runner_docker

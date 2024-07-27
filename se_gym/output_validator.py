@@ -3,10 +3,8 @@ import typing
 import re
 import ast
 import pydantic
-import pathlib
 import logging
 
-from . import utils
 from . import runner_host
 
 logger = logging.getLogger("output_validator")

@@ -1,10 +1,8 @@
-import pathlib
 import logging
 import typing
 from haystack.components.builders import PromptBuilder
 import haystack
 
-from . import utils
 from . import observe
 from . import config
 from . import generator_singleton

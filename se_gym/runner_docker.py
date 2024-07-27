@@ -10,11 +10,7 @@ import shutil
 import io
 import subprocess
 import xml.etree.ElementTree as ET
-import regex
-from fuzzywuzzy import fuzz
-import pathlib
 import typing
-from . import config
 from . import utils
 import tarfile
 
@@ -59,7 +55,7 @@ class DockerConnector:
     def __init__(self):
         try:
             self.client = docker.from_env()
-        except docker.errors.DockerException as e:
+        except docker.errors.DockerException:
             print("Docker is not running")
             logger.critical("Docker is not running")
             sys.exit(1)
@@ -169,7 +165,7 @@ RUN pip install pytest
     ) -> dict:
         if suite == "pytest":
             command = "pytest --junitxml=testresults.xml"
-            test_log = container.exec_run(command, workdir="/repo")
+            _ = container.exec_run(command, workdir="/repo")
             test_xml = container.exec_run("cat testresults.xml", workdir="/repo")
             xml_str = test_xml.output.decode("utf-8")
             tree = ET.fromstring(xml_str)

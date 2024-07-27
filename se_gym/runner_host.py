@@ -68,7 +68,7 @@ def get_code_span(full_code: str, partial_code: str) -> str:
         match = regex.search(
             "(?b)(" + regex.escape(partial_code) + "){i<=" + ids_max + "}", full_code
         )
-    except Exception as e:
+    except Exception:
         logger.info("Pattern exception", exc_info=True)
         raise ValueError(err)
     if match is None:

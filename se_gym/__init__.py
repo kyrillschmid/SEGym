@@ -1,3 +1,5 @@
+# ruff: noqa: F401
+
 import os
 
 os.environ["HAYSTACK_TELEMETRY_ENABLED"] = "False"
