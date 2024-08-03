@@ -2,12 +2,44 @@ from functools import wraps
 import pickle
 import logging
 from inspect import signature
-import glob
 import os
 import openai
 import pandas as pd
+import pathlib
+import typing
+import tempfile
 
 logger = logging.getLogger("utils")
+
+
+def relpath(s: typing.Any, to: typing.Union[None, typing.Any] = None) -> str:
+    """ "
+    Get the current path relative to the temp directory.
+    """
+    s = str2path(s)
+    if to is not None:
+        to = str2path(to)
+        modified_path = s.relative_to(to)
+        return modified_path
+    else:
+        to = pathlib.Path(tempfile.gettempdir())
+        modified_path = s.relative_to(to)
+        modified_path = modified_path.relative_to(modified_path.parts[0])
+        return modified_path
+
+
+def str2path(s: typing.Any) -> str:
+    """
+    Attempt to convert a string into a pathlib.Path object.
+    """
+    if isinstance(s, pathlib.Path):
+        return s
+    if isinstance(s, str):
+        # warnings.warn(f"path {s} is a string. Try to use pathlib.Path instead.", stacklevel=2)
+        return pathlib.Path(s)
+    if s is None:
+        return
+    raise ValueError(f"Invalid path {s}")
 
 
 def log_to_parqet(log_filename: str, **kwargs):
@@ -29,25 +61,9 @@ def slugify(value):
     import re
 
     value = str(value)
-    value = (
-        unicodedata.normalize("NFKD", value).encode("ascii", "ignore").decode("ascii")
-    )
+    value = unicodedata.normalize("NFKD", value).encode("ascii", "ignore").decode("ascii")
     value = re.sub(r"[^\w\s-]", "", value.lower())
     return re.sub(r"[-\s]+", "-", value).strip("-_")
-
-
-def find_file(root_dir: str, filename: str) -> str:
-    """
-    Find a file in a directory.
-    """
-    root_abs = os.path.abspath(root_dir)
-    for f in glob.glob(f"{root_dir}/**/{filename}", recursive=True):
-        f_abs = os.path.abspath(f)
-        rel_path = os.path.relpath(f_abs, root_abs).replace("\\", "/")
-        if not rel_path.startswith("./"):
-            rel_path = "./" + rel_path
-        return rel_path
-    raise FileNotFoundError(f"File {filename} not found in {root_dir}")
 
 
 def check_client(client):
@@ -70,18 +86,14 @@ def cached(ignore=None):
             sig = signature(func)
             bound_args = sig.bind(*args, **kwargs)
             bound_args.apply_defaults()
-            cache_key = tuple(
-                (k, v) for k, v in bound_args.arguments.items() if k not in ignore
-            )
+            cache_key = tuple((k, v) for k, v in bound_args.arguments.items() if k not in ignore)
             return slugify(cache_key)
 
         cache_file = f".cache.{func.__name__}.pkl"
         try:
             with open(cache_file, "rb") as f:
                 func.cache = pickle.load(f)
-                logger.debug(
-                    f"Loaded cache from {cache_file}, keys: {list(func.cache.keys())}"
-                )
+                logger.debug(f"Loaded cache from {cache_file}, keys: {list(func.cache.keys())}")
         except FileNotFoundError:
             logger.debug(f"Cache file {cache_file} not found. Creating new cache.")
             func.cache = {}

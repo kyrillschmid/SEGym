@@ -22,7 +22,7 @@ def percent_successfull(test_results: typing.Union[api.State, dict]) -> float:
     if isinstance(test_results, api.InvalidState):
         return 0
     if isinstance(test_results, api.State):
-        test_results = test_results.logs
+        test_results = test_results.logs[-1]
     if not test_results:
         logger.info("No test results found")
         return 0
@@ -38,16 +38,12 @@ def num_failed_tests(test_results: typing.Union[api.State, dict]) -> int:
     if isinstance(test_results, api.InvalidState):
         return 0
     if isinstance(test_results, api.State):
-        test_results = test_results.logs
+        test_results = test_results.logs[-1]
     if not test_results:
         logger.info("No test results found")
         return 0
     return len(
-        [
-            k
-            for k, v in test_results.items()
-            if v["status"] == "failed" or v["status"] == "error"
-        ]
+        [k for k, v in test_results.items() if v["status"] == "failed" or v["status"] == "error"]
     )
 
 
