@@ -28,7 +28,11 @@ def set_generator(generator):
 
 def get_generator():
     assert _Generator._initialized, "Generator has to be initialized"
-    return copy.deepcopy(_Generator._instance)
+    try:
+        return copy.deepcopy(_Generator._instance)
+    except Exception as e:
+        warnings.warn(f"Failed to deepcopy generator, returning flat instance. {e}")
+        return _Generator._instance
 
 
 def get_json_generator():
