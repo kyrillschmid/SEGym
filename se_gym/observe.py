@@ -304,12 +304,13 @@ class Store:
 
     def update(self, path: Path):
         logger.info(f"Updating store with path {path}")
-        if self.path is not None:
-            # TODO: add a check to see which files have been added or removed and update only those
-            pass
-        if isinstance(self.retriever, CodeMapRetriever):
-            self.retriever.set_code_map(path)
+        if self.path is not None:  # Clear the store
+            self.document_store.delete_documents(
+                [d.id for d in self.document_store.filter_documents()]
+            )
         self.path = utils.str2path(path)
         files = list(self.path.rglob("*.py"))
         docs = self.converter.run(sources=files, base_path=path)["documents"]
         self.document_store.write_documents(docs, policy="overwrite")
+        if isinstance(self.retriever, CodeMapRetriever):
+            self.retriever.set_code_map(self.document_store.filter_documents())
