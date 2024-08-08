@@ -13,3 +13,4 @@ The project is in a runnable state, generating meaningful data. However, there a
 - [ ] Add cleanups: `docker container prune` and auto-delete `temp` directory
 - [ ] Case study comparing different retrieval methods
 - [ ] Check Code Map Retrieval performance with different LLMs
+- [ ] Test Code Map Retrieval with different readers (specifically `ast`)

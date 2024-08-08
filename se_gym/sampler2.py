@@ -81,7 +81,9 @@ EXAMPLE: If you want to replace the code in the file `./src/main.py` from `Hello
 
         self.pipeline.add_component(instance=self.prompt_builder, name="prompt_builder")
         self.pipeline.add_component(instance=self.store.retriever, name="retriever")
-        self.pipeline.add_component(instance=generator_singleton.get_generator(), name="generator")
+        self.pipeline.add_component(
+            instance=generator_singleton.get_json_generator(), name="generator"
+        )
         self.pipeline.add_component(instance=self.validator, name="validator")
 
         self.pipeline.connect("retriever.documents", "prompt_builder.documents")
