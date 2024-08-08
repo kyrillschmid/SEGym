@@ -10,7 +10,7 @@ import logging
 import ast
 import re
 
-logger = logging.getLogger("codemapobserver")
+logger = logging.getLogger(__name__)
 
 __all__ = ["CodeMapRetriever"]
 

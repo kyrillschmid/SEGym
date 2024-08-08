@@ -9,7 +9,7 @@ from . import generator_singleton
 from . import output_validator
 from . import runner_host
 
-logger = logging.getLogger("sampler")
+logger = logging.getLogger(__name__)
 
 __all__ = ["Sampler"]
 

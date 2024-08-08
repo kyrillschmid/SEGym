@@ -14,7 +14,7 @@ __all__ = ["Population", "LLMPopulation"]
 
 prompt = typing.Annotated[str, "Prompt to an LLM"]
 
-logger = logging.getLogger("genetic")
+logger = logging.getLogger(__name__)
 
 
 class Children(pydantic.BaseModel):

@@ -11,7 +11,7 @@ from . import utils
 
 __all__ = ["generate_patch", "find_file", "MalformedPatchException"]
 
-logger = logging.getLogger("runner_host")
+logger = logging.getLogger(__name__)
 
 
 class MalformedPatchException(Exception):

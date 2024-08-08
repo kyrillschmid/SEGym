@@ -16,7 +16,7 @@ import tarfile
 
 __all__ = ["DockerConnector"]
 
-logger = logging.getLogger("runner_docker")
+logger = logging.getLogger(__name__)
 
 
 class MalformedPatchException(Exception):

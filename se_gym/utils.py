@@ -9,7 +9,7 @@ import pathlib
 import typing
 import tempfile
 
-logger = logging.getLogger("utils")
+logger = logging.getLogger(__name__)
 
 
 def relpath(s: typing.Any, to: typing.Union[None, typing.Any] = None) -> str:
