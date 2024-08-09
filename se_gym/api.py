@@ -12,7 +12,7 @@ from . import runner_host
 from . import runner_docker
 
 random.seed(15)
-logger = logging.getLogger("api")
+logger = logging.getLogger(__name__)
 __all__ = ["make"]
 
 if not os.path.exists(config.DEFAULT_SAVE_PATH):

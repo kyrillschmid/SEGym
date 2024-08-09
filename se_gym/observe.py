@@ -11,7 +11,7 @@ from . import utils
 from . import config
 from .codemapretriever import CodeMapRetriever
 
-logger = logging.getLogger("store")
+logger = logging.getLogger(__name__)
 
 __all__ = ["Store"]
 
@@ -34,7 +34,7 @@ class PyFileConverter:
     ):
         documents = []
         for source in sources:
-            relative = os.path.relpath(source, base_path)
+            relative = os.path.relpath(source, base_path).replace("\\", "/")
             with open(source, "r") as f:
                 text = f.read()
             text = f"# {file_path_formatter(source)}\n```python\n{text}\n```"
@@ -99,7 +99,9 @@ class TxtFileConverter:
     ):
         docs = self._c.run(sources=sources)["documents"]
         for doc in docs:
-            doc.meta["file_path_relative"] = os.path.relpath(doc.meta["file_path"], base_path)
+            doc.meta["file_path_relative"] = os.path.relpath(
+                doc.meta["file_path"], base_path
+            ).replace("\\", "/")
         return {"documents": docs}
 
 
@@ -149,7 +151,7 @@ class PyASTConverter:
                 end_line=item["end_lineno"],
                 full_text=filefull,
                 file_path=filename,
-                file_path_relative=os.path.relpath(filename, base_path),
+                file_path_relative=os.path.relpath(filename, base_path).replace("\\", "/"),
             )
             if item["type"] == "class":
                 docs.append(haystack.Document(content=PyASTConverter.class2txt(item), meta=docargs))
@@ -202,7 +204,7 @@ class PyASTConverter:
                     "end_lineno": end_lineno,
                     "path": filename,
                     "file_path": filename,
-                    "file_path_relative": os.path.relpath(filename, base_path),
+                    "file_path_relative": os.path.relpath(filename, base_path).replace("\\", "/"),
                 },
             )
 
@@ -304,12 +306,14 @@ class Store:
 
     def update(self, path: Path):
         logger.info(f"Updating store with path {path}")
-        if self.path is not None:
-            # TODO: add a check to see which files have been added or removed and update only those
-            pass
-        if isinstance(self.retriever, CodeMapRetriever):
-            self.retriever.set_code_map(path)
+        if self.path is not None:  # Clear the store
+            self.document_store.delete_documents(
+                [d.id for d in self.document_store.filter_documents()]
+            )
         self.path = utils.str2path(path)
         files = list(self.path.rglob("*.py"))
         docs = self.converter.run(sources=files, base_path=path)["documents"]
         self.document_store.write_documents(docs, policy="overwrite")
+        if isinstance(self.retriever, CodeMapRetriever):
+            new_docs = self.retriever.set_code_map(self.document_store.filter_documents())
+            self.document_store.write_documents(new_docs, policy="overwrite")

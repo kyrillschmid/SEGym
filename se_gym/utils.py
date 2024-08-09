@@ -9,7 +9,7 @@ import pathlib
 import typing
 import tempfile
 
-logger = logging.getLogger("utils")
+logger = logging.getLogger(__name__)
 
 
 def relpath(s: typing.Any, to: typing.Union[None, typing.Any] = None) -> str:
@@ -75,6 +75,36 @@ def check_client(client):
     except openai._exceptions.APITimeoutError:
         # timeout -> wrong ip
         raise ValueError("API Timeout. Check if you are connected to the VPN.")
+
+
+def timeout_after(seconds):
+    import threading
+    import functools
+
+    class TimeoutError(Exception):
+        pass
+
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            result = [TimeoutError(f"Function {func.__name__} timed out after {seconds} seconds")]
+
+            def target_func():
+                try:
+                    result[0] = func(*args, **kwargs)
+                except Exception as e:
+                    result[0] = e
+
+            thread = threading.Thread(target=target_func)
+            thread.start()
+            thread.join(seconds)
+            if thread.is_alive():
+                return result[0]
+            return result[0]
+
+        return wrapper
+
+    return decorator
 
 
 def cached(ignore=None):

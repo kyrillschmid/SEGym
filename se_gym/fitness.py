@@ -6,7 +6,7 @@ from . import api
 import logging
 import typing
 
-logger = logging.getLogger("fitness")
+logger = logging.getLogger(__name__)
 
 
 def percent_successfull(test_results: typing.Union[api.State, dict]) -> float:

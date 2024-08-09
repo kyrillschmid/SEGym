@@ -7,7 +7,7 @@ import logging
 
 from . import runner_host
 
-logger = logging.getLogger("output_validator")
+logger = logging.getLogger(__name__)
 
 
 class ChangePatchOutput(pydantic.BaseModel):

@@ -2,7 +2,8 @@
 
 import os
 
-os.environ["HAYSTACK_TELEMETRY_ENABLED"] = "False"
+os.environ["HAYSTACK_TELEMETRY_ENABLED"] = "false"
+os.environ["HAYSTACK_LOGGING_IGNORE_STRUCTLOG_ENV_VAR"] = "true"
 
 from .fitness import percent_successfull, num_failed_tests
 from .api import make
