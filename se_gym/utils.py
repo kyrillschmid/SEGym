@@ -3,7 +3,6 @@ import pickle
 import logging
 from inspect import signature
 import os
-import openai
 import pandas as pd
 import pathlib
 import typing
