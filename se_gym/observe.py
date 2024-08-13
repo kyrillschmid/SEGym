@@ -300,20 +300,19 @@ class Store:
         elif retriever == "full":
             self.retriever = FullCodeRetriever(document_store=self.document_store)
         elif retriever == "codemap":
-            self.retriever = CodeMapRetriever(document_store=self.document_store, llm=kwargs["llm"])
+            self.retriever = CodeMapRetriever(document_store=self.document_store)
         else:
             raise NotImplementedError(f"Retriever {retriever} not implemented")
 
-    def update(self, path: Path):
-        logger.info(f"Updating store with path {path}")
+    def update(self, state):
+        logger.info(f"Updating store with path {state.path}")
         if self.path is not None:  # Clear the store
-            self.document_store.delete_documents(
-                [d.id for d in self.document_store.filter_documents()]
-            )
-        self.path = utils.str2path(path)
+            utils.clear_store(self.document_store)
+        self.path = utils.str2path(state.path)
         files = list(self.path.rglob("*.py"))
-        docs = self.converter.run(sources=files, base_path=path)["documents"]
+        docs = self.converter.run(sources=files, base_path=state.path)["documents"]
         self.document_store.write_documents(docs, policy="overwrite")
         if isinstance(self.retriever, CodeMapRetriever):
-            new_docs = self.retriever.set_code_map(self.document_store.filter_documents())
+            new_docs = self.retriever.get_summed_docs(self.document_store.filter_documents(), state)
+            utils.clear_store(self.document_store)
             self.document_store.write_documents(new_docs, policy="overwrite")

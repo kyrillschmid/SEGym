@@ -7,8 +7,8 @@ import pydantic
 import random
 import logging
 from . import config
-from . import client
 from . import sampler2
+from . import generators
 
 __all__ = ["Population", "LLMPopulation"]
 
@@ -33,11 +33,12 @@ class Child(pydantic.BaseModel):
 BASE_SYSTEM_PROMPT = """
 You are a prompt engineer. 
 A fitness of 0 means the prompt is very bad, such that the model has not been able to generate a valid response. In this case, stress the importance of readability and clarity and the correct format.
-You always output in JSON format.
 You are writing the prompt for a weak LLM model. The model is not very good at extrapolating from the prompt, so you need to be very clear and explicit in your instructions.
 """
 
-CROSSOVER_SYSTEM_PROMPT = """
+CROSSOVER_SYSTEM_PROMPT = (
+    BASE_SYSTEM_PROMPT
+    + """
 You are a prompt engineer. 
 You are trying to improve the quality of two prompts (instructions) using a genetic algorithm by performing a crossover operation.
 During the crossover operation, you combine two prompts to create two new prompts.
@@ -48,6 +49,7 @@ You know that the child prompts should be similar to the parent prompts, but not
 You also know that the child prompts should be different from each other.
 You know the fitness scores of the parent prompts and how they are calculated.
 """
+)
 
 CROSSOVER_USER_PROMPT = """
 The first prompt with a fitness score of {fitness1} is:
@@ -63,7 +65,9 @@ The second prompt with a fitness score of {fitness2} is:
 Based on the parent prompts, create two new prompts that are similar to the parent prompts but not identical.
 """
 
-MUTATION_SYSTEM_PROMPT = """
+MUTATION_SYSTEM_PROMPT = (
+    BASE_SYSTEM_PROMPT
+    + """
 You are a prompt engineer.
 You are trying to improve the quality of a prompt (instructions) using a genetic algorithm by performing a mutation operation.
 During the mutation operation, you modify the prompt to create a new prompt.
@@ -73,6 +77,7 @@ To increase the fitness of the child prompt, make major changes to the parent pr
 You know that the child prompt should be similar to the parent prompt, but not identical.
 You know the fitness score of the parent prompt and how it is calculated.
 """
+)
 
 MUTATION_USER_PROMPT = """
 The parent prompt with a fitness score of {fitness} is:
@@ -81,13 +86,6 @@ The parent prompt with a fitness score of {fitness} is:
 =======================================================
 Based on the parent prompt, create a new prompt that is similar to the parent prompt but not identical.
 """
-
-
-def get_messages(system_prompt, user_prompt):
-    return [
-        dict(role="system", content=system_prompt),
-        dict(role="user", content=user_prompt),
-    ]
 
 
 class Population:
@@ -111,43 +109,45 @@ class Population:
         self.num_random = len(self.individuals) - (
             self.num_elite + self.num_mutation + self.num_crossover
         )
+        self.mut_gen = generators.CustomGenerator(
+            model_config=config.EVO_MODEL_CONFIG,
+            schema=Child,
+        )
+        self.cross_gen = generators.CustomGenerator(
+            model_config=config.EVO_MODEL_CONFIG,
+            schema=Children,
+        )
 
     def _mutate(self, parent: prompt, fitness: float):
         logger.debug(f"Mutating {parent} with fitness {fitness}")
-        model = config.EVO_MODEL_NAME or config.MODEL_NAME
-        resp = client._Client.completions_create(
-            messages=get_messages(
-                BASE_SYSTEM_PROMPT + MUTATION_SYSTEM_PROMPT.format(fitness=fitness),
+        resp = self.mut_gen.run(
+            prompt=[
+                MUTATION_SYSTEM_PROMPT.format(fitness=fitness),
                 MUTATION_USER_PROMPT.format(fitness=fitness, parent=parent),
-            ),
-            model=model,
-            response_model=Child,
-            field_name="child",
+            ],
+            schema=Child,
         )
-        return resp
+        val = Child.model_validate_json(resp["replies"][0])
+        return val.child
 
     def _crossover(self, parent1: prompt, parent2: prompt, fitness1: float, fitness2: float):
         logger.debug(
             f"Crossover {parent1} with fitness {fitness1} and {parent2} with fitness {fitness2}"
         )
-        model = config.EVO_MODEL_NAME or config.MODEL_NAME
-        resp = client._Client.completions_create(
-            messages=get_messages(
-                BASE_SYSTEM_PROMPT
-                + CROSSOVER_SYSTEM_PROMPT.format(fitness1=fitness1, fitness2=fitness2),
+        resp = self.cross_gen.run(
+            prompt=[
+                CROSSOVER_SYSTEM_PROMPT.format(fitness1=fitness1, fitness2=fitness2),
                 CROSSOVER_USER_PROMPT.format(
                     fitness1=fitness1,
                     fitness2=fitness2,
                     parent1=parent1,
                     parent2=parent2,
                 ),
-            ),
-            model=model,
-            temperature=0.2,
-            response_model=Children,
-            field_name=["child1", "child2"],
+            ],
+            schema=Children,
         )
-        return resp
+        val = Children.model_validate_json(resp["replies"][0])
+        return val.child1, val.child2
 
     def _selection(
         self,

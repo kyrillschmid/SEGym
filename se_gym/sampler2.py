@@ -2,16 +2,27 @@ import logging
 import typing
 from haystack.components.builders import PromptBuilder
 import haystack
+import pydantic
 
 from . import observe
 from . import config
-from . import generator_singleton
+from . import generators
 from . import output_validator
 from . import runner_host
 
 logger = logging.getLogger(__name__)
 
 __all__ = ["Sampler"]
+
+
+class Patch(pydantic.BaseModel):
+    filename: str = pydantic.Field(
+        description="The filename of the file to be changed. Use the exact filename that was provided to you. Do not modify it. If you are modifying multiple files, only list one file here. You will be able to modify multiple files in the next step."
+    )
+    old_code: str = pydantic.Field(
+        description="The original code. Use the exact code that was provided to you. Do not modify it."
+    )
+    new_code: str = pydantic.Field(description="The new code to replace the original code.")
 
 
 class Sampler:
@@ -82,7 +93,10 @@ EXAMPLE: If you want to replace the code in the file `./src/main.py` from `Hello
         self.pipeline.add_component(instance=self.prompt_builder, name="prompt_builder")
         self.pipeline.add_component(instance=self.store.retriever, name="retriever")
         self.pipeline.add_component(
-            instance=generator_singleton.get_json_generator(), name="generator"
+            instance=generators.CustomGenerator(
+                model_config=config.MODEL_CONFIG, no_verify=True, schema=Patch
+            ),
+            name="generator",
         )
         self.pipeline.add_component(instance=self.validator, name="validator")
 
@@ -95,10 +109,9 @@ EXAMPLE: If you want to replace the code in the file `./src/main.py` from `Hello
     def update_current_state(self, state):
         self.code_base_root = state.path
         runner_host.apply_past_patches(state.repo, state.setup_commit, state.previous_patches)
-        self.store.update(self.code_base_root)
+        self.store.update(state=state)
         self.validator.update_state(state)
 
-    # @utils.cached()
     def __call__(
         self,
         trainable_prompt: str,
