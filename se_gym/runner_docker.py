@@ -141,6 +141,9 @@ RUN pip install pytest
 
     @staticmethod
     def apply_patch(container: docker.models.containers.Container, patch: str):
+        if patch in [None, "", "[]"]:
+            logger.info("No patch to apply")
+            return ""
         tarstream = io.BytesIO()
         with tarfile.open(fileobj=tarstream, mode="w") as tar:
             tarinfo = tarfile.TarInfo("file.patch")

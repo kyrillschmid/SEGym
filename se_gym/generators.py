@@ -79,11 +79,19 @@ class CustomGenerator:
         schema = schema or self.schema
 
         if schema is not None:
-            rf = dict(response_format={"type": "json_object", "schema": schema.model_json_schema()})
+            if config.LLAMACPP_COMPATIBLE_SCHEMA:
+                rf = dict(
+                    response_format={"type": "json_object", "schema": schema.model_json_schema()}
+                )
+            else:
+                rf = dict(
+                    response_format={
+                        "type": "json_schema",
+                        "json_schema": {"schema": schema.model_json_schema()},
+                    }
+                )
         else:
             rf = dict()
-
-        # logger.debug(f"Calling {self.model_name} with messages: {messages} and kwargs: {kwargs} and rf: {rf}")
 
         completion = self.client.beta.chat.completions.parse(
             model=self.model_name,
