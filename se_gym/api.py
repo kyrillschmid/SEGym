@@ -20,7 +20,7 @@ if not os.path.exists(config.DEFAULT_SAVE_PATH):
     os.makedirs(config.DEFAULT_SAVE_PATH)
 
 
-def make(dataset: str = "princeton-nlp/SWE-bench_Lite_oracle/dev"):
+def make(dataset: str = "princeton-nlp/SWE-bench_Verified/dev"):
     return Environment(get_ds(dataset))
 
 

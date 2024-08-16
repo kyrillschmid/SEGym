@@ -298,5 +298,4 @@ The directory contains the following directories and files:
                 if not isinstance(doc, _DocumentDirectory):
                     documents.append(doc)
                 selected_files.remove(fpr)
-        logger.debug(f"Remaining files: {selected_files}, found {len(documents)} documents")
         return {"documents": documents}

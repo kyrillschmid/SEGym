@@ -130,7 +130,7 @@ def cache(identifier: str, func, *args, **kwargs):
         return result
 
 
-def logging_setup():
+def logging_setup(log_file="se_gym.log"):
     """
     Disable all logs except for the ones starting with "se_gym".
     """
@@ -141,7 +141,11 @@ def logging_setup():
             log_obj.disabled = True
     logger = logging.getLogger()
     logger.setLevel(logging.DEBUG)
-    logging.basicConfig(level=logging.DEBUG)
+    if log_file:
+        handlers = [logging.FileHandler(log_file), logging.StreamHandler()]
+    else:
+        handlers = [logging.StreamHandler()]
+    logging.basicConfig(level=logging.DEBUG, handlers=handlers)
 
 
 def remove_control_characters(s):
