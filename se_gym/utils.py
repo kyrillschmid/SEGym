@@ -3,11 +3,12 @@ import pickle
 import logging
 from inspect import signature
 import os
-import openai
 import pandas as pd
 import pathlib
 import typing
 import tempfile
+import unicodedata
+from . import config
 
 logger = logging.getLogger(__name__)
 
@@ -66,47 +67,6 @@ def slugify(value):
     return re.sub(r"[-\s]+", "-", value).strip("-_")
 
 
-def check_client(client):
-    try:
-        client.models.list()
-    except openai._exceptions.APIStatusError:
-        # model not found -> probably running on ollama
-        pass
-    except openai._exceptions.APITimeoutError:
-        # timeout -> wrong ip
-        raise ValueError("API Timeout. Check if you are connected to the VPN.")
-
-
-def timeout_after(seconds):
-    import threading
-    import functools
-
-    class TimeoutError(Exception):
-        pass
-
-    def decorator(func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            result = [TimeoutError(f"Function {func.__name__} timed out after {seconds} seconds")]
-
-            def target_func():
-                try:
-                    result[0] = func(*args, **kwargs)
-                except Exception as e:
-                    result[0] = e
-
-            thread = threading.Thread(target=target_func)
-            thread.start()
-            thread.join(seconds)
-            if thread.is_alive():
-                return result[0]
-            return result[0]
-
-        return wrapper
-
-    return decorator
-
-
 def cached(ignore=None):
     if ignore is None:
         ignore = []
@@ -142,3 +102,51 @@ def cached(ignore=None):
         return wrapper
 
     return decorator
+
+
+def clear_store(store):
+    store.delete_documents([d.id for d in store.filter_documents()])
+
+
+def cache(identifier: str, func, *args, **kwargs):
+    """
+    If the there is a cache file with the same identifier, its content will be returned, otherwise the function will be called and the result will be saved in a cache file for future use.
+    """
+    if not config.CACHE_DIR:
+        return func(*args, **kwargs)
+    if not os.path.exists(config.CACHE_DIR):
+        os.makedirs(config.CACHE_DIR)
+    identifier = os.path.join(config.CACHE_DIR, f".{slugify(identifier)}.pkl")
+
+    try:
+        with open(identifier, "rb") as f:
+            logger.debug(f"Loading cache from {identifier}")
+            return pickle.load(f)
+    except FileNotFoundError:
+        logger.debug(f"Cache file {identifier} not found. Creating new cache")
+        result = func(*args, **kwargs)
+        with open(identifier, "wb") as f:
+            pickle.dump(result, f)
+        return result
+
+
+def logging_setup(log_file="se_gym.log"):
+    """
+    Disable all logs except for the ones starting with "se_gym".
+    """
+    for log_name, log_obj in logging.Logger.manager.loggerDict.items():
+        if log_name.startswith("se_gym"):
+            log_obj.disabled = False
+        else:
+            log_obj.disabled = True
+    logger = logging.getLogger()
+    logger.setLevel(logging.DEBUG)
+    if log_file:
+        handlers = [logging.FileHandler(log_file), logging.StreamHandler()]
+    else:
+        handlers = [logging.StreamHandler()]
+    logging.basicConfig(level=logging.DEBUG, handlers=handlers)
+
+
+def remove_control_characters(s):
+    return "".join(ch for ch in s if unicodedata.category(ch)[0] != "C")

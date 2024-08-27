@@ -10,6 +10,7 @@ import copy
 from . import config
 from . import runner_host
 from . import runner_docker
+from . import dummy_ds
 
 random.seed(15)
 logger = logging.getLogger(__name__)
@@ -19,18 +20,17 @@ if not os.path.exists(config.DEFAULT_SAVE_PATH):
     os.makedirs(config.DEFAULT_SAVE_PATH)
 
 
-def make(dataset: str = "princeton-nlp/SWE-bench_Lite_oracle/dev"):
+def make(dataset: str = "princeton-nlp/SWE-bench_Verified/dev"):
     return Environment(get_ds(dataset))
 
 
 def get_ds(dataset):
     if dataset == "dummy":
-        import json
-
-        with open("./dummy_dataset.json", "r") as f:
-            return json.load(f)
+        return dummy_ds.dummy1
+    elif dataset == "dummy2":
+        return dummy_ds.dummy2
     else:
-        import datasets
+        import datasets  # delayed import to avoid slow startup
 
         split = None
         if dataset.endswith("/dev") or dataset.endswith("/test"):
@@ -54,7 +54,8 @@ class State:
     )
 
 
-class InvalidState(State): ...
+class InvalidState(State):
+    pass
 
 
 class Environment:

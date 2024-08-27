@@ -12,6 +12,7 @@ old_*
 temp*file.patch
 .cache.*.pkl
 data*.parquet
+demo.py
 
 .aider*
 !.aider.conf.yml

@@ -15,6 +15,9 @@
         "editor.defaultFormatter": "charliermarsh.ruff"
     },
     "python.analysis.include": [
-        "se_gym"
+        "${workspaceFolder}/se_gym"
     ],
+    "python.analysis.exclude": [
+        "${workspaceFolder}/.venv", "**/*cache*"
+    ]
 }
